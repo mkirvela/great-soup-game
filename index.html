@@ -6785,7 +6785,7 @@ function setGuests(v){
     buildGuests();
   }
 }
-document.getElementById('guestbtn').onclick=()=>setGuests(true);
+{ const gb=document.getElementById('guestbtn'); if(gb) gb.onclick=()=>setGuests(true); }
 document.getElementById('gclose').onclick=()=>setGuests(false);
 function setCodex(v){
   codexOpen=v; codexEl.classList.toggle('on',v);
