@@ -44,54 +44,28 @@
   .lbl{font-family:var(--f-mono);font-size:9px;letter-spacing:.22em;
     text-transform:uppercase;color:var(--ash-dim)}
 
+  /* one row now, the aroma. The three flavour bars and their track/fill
+     machinery went with them; the palate colours (--sweet/--bitter/--umami)
+     stay, because the order ticket and the floor tint still use them. */
   .bars{display:flex;flex-direction:column;gap:8px;width:186px}
-  .bar{display:flex;flex-direction:column;gap:4px}
-  .bar .row{display:flex;justify-content:space-between;align-items:baseline}
-  .bar .row span:last-child{font-family:var(--f-mono);font-size:10px;
-    font-variant-numeric:tabular-nums;color:var(--ash)}
-  .bar .track{height:7px;background:#150D14;border:2px solid var(--ink);overflow:hidden}
-  .bar .fill{height:100%;width:0%;transition:width .16s linear}
-  #f0 .fill{background:var(--sweet)}  #f0 .lbl{color:var(--sweet)}
-  #f1 .fill{background:var(--bitter)} #f1 .lbl{color:var(--bitter)}
-  #f2 .fill{background:var(--umami)}  #f2 .lbl{color:var(--umami)}
-  #mf .fill{background:var(--hot)} #mf .lbl{color:var(--hot)}
+  .bars .row{display:flex;justify-content:space-between;align-items:baseline}
 
-  #bl{bottom:0;left:0;padding:20px 24px;display:flex;flex-direction:column;gap:13px}
-  .meter{width:196px;display:flex;flex-direction:column;gap:4px}
-  .meter .track{height:7px;background:#150D14;border:2px solid var(--ink);overflow:hidden}
-  .meter .fill{height:100%;background:var(--cream);width:0%}
-  .meter .row{display:flex;justify-content:space-between;align-items:baseline}
-  .meter .row span:last-child{font-family:var(--f-mono);font-size:10px;
-    font-variant-numeric:tabular-nums;color:var(--ash)}
-
-  .blhead{font-family:var(--f-mono);font-size:9px;letter-spacing:.22em;
-    text-transform:uppercase;color:var(--ash-dim);margin:0 0 2px}
-  .meter .why{margin:3px 0 0;font-size:11.5px;line-height:1.35;
-    color:var(--ash);opacity:.72;max-width:200px}
-  .hint{font-size:12.5px;line-height:1.6;color:var(--ash);margin:6px 0 0;
-    max-width:210px}
-  .hint em{color:var(--gold);font-style:normal;font-weight:700}
   /* ── SHORT WINDOWS ───────────────────────────────────────────────────────
-     `#tl` grows down from the top and `#bl` grows up from the bottom, and the
-     two of them want about 550px between them. In a half-height browser window
-     — or a phone on its side — they collide, and the labels print straight over
-     each other.
+     There used to be a whole shedding ladder here: `#tl` grows down from the
+     top and `#bl` grew up from the bottom, the two of them wanted about 550px
+     between them, and in a half-height window they collided — so the bottom
+     column dropped its prose, then its cookbook nudge, then the game's name, in
+     the order it could afford to lose them.
 
-     So the column sheds weight as the room runs out, in the order it can afford
-     to lose it: the explanatory prose first, because it is tutorial text you
-     read once; then the cookbook nudge; then the game's own name, which is
-     decoration next to a readout you are actually using. Nothing that carries a
-     NUMBER is ever hidden. */
-  @media (max-height:820px){ .meter .why{display:none} }
-  @media (max-height:700px){
-    .hint{display:none} #bl{gap:10px} #tl{gap:12px}
-    .title{font-size:30px} }
+     The bottom column is gone: its three readings are on the pot's belly, which
+     scales with R and so cannot collide with anything. All that is left to shed
+     is the title, which is decoration next to a readout you are actually
+     using. */
+  @media (max-height:700px){ #tl{gap:12px} .title{font-size:30px} }
   @media (max-height:580px){
     .title{font-size:22px} .title span{display:none}
-    #bl{padding:14px 20px;gap:8px} #tl{padding:14px 20px;gap:9px} }
-  @media (max-height:470px){
-    .title{display:none} .blhead{display:none}
-    #bl{gap:7px} #tl{gap:8px} }
+    #tl{padding:14px 20px;gap:9px} }
+  @media (max-height:470px){ .title{display:none} #tl{gap:8px} }
 
   /* ---------- upgrades button ---------- */
   /* ── THE TOP BAR ──────────────────────────────────────────────────────────
@@ -207,13 +181,6 @@
     font-family:var(--f-disp);text-transform:uppercase;
     font-size:21px;letter-spacing:.06em;color:#B9A4B8;text-align:center;
     box-shadow:4px 4px 0 var(--ink)}
-  /* act preview switch — bottom right, and it must be clickable, which means
-     re-declaring pointer-events because .hud turns them off */
-  #br{position:fixed;bottom:0;right:0;z-index:6;padding:18px 22px;
-    display:flex;flex-direction:column;gap:8px;align-items:flex-end;
-    pointer-events:auto}
-  #br .lbl{font-family:var(--f-mono);font-size:9px;letter-spacing:.22em;
-    text-transform:uppercase;color:var(--ash-dim)}
   /* ---------- the codex ---------- */
   /* ── THE HAMBURGER ──────────────────────────────────────────────────────
      Two things in the bar instead of five. UPGRADES keeps its place because it
@@ -535,8 +502,8 @@
   @media (prefers-reduced-motion:reduce){ #tilt .ph{animation:none} }
   /* one rule dims the whole bar while you are dragging, instead of a per-button
      rule that had to be remembered for each new button. */
-  #bl,#br,#hudbar,.title{transition:opacity .14s ease-out}
-  body.drag #bl,body.drag #br,body.drag #hudbar,body.drag .title{opacity:.10}
+  #hudbar,.title{transition:opacity .14s ease-out}
+  body.drag #hudbar,body.drag .title{opacity:.10}
   /* the CHILDREN, not the bar: they re-enable pointer-events themselves, and a
      child's `auto` beats the parent's `none`, so disabling only #hudbar would
      have left all four buttons clickable through a drag. */
@@ -574,44 +541,25 @@
     <div class="coin"><i></i><b id="broth">0</b></div>
     <div class="lbl" style="margin-top:4px">Broth</div>
   </div>
+  <!-- SWEET / BITTER / UMAMI were three bars here. Gone — see the note above
+       tickFlavour() for the counting that killed them. What is left is the
+       aroma, which is a rate you can move with your hands. -->
   <div class="bars">
-    <div class="bar" id="f0"><div class="row"><span class="lbl">Sweet</span><span id="v0">0</span></div><div class="track"><div class="fill"></div></div></div>
-    <div class="bar" id="f1"><div class="row"><span class="lbl">Bitter</span><span id="v1">0</span></div><div class="track"><div class="fill"></div></div></div>
-    <div class="bar" id="f2"><div class="row"><span class="lbl">Umami</span><span id="v2">0</span></div><div class="track"><div class="fill"></div></div></div>
-    <div class="row" style="margin-top:2px"><span class="lbl">Aroma</span><span id="varo" style="font-family:var(--f-mono);font-size:10px;color:var(--hot)">—</span></div>
+    <div class="row"><span class="lbl">Aroma</span><span id="varo" style="font-family:var(--f-mono);font-size:10px;color:var(--hot)">—</span></div>
   </div>
 </div>
 
-<div class="hud" id="bl">
-  <p class="blhead">The pot, right now</p>
-  <div class="meter" id="ms">
-    <div class="row"><span class="lbl">Swirl</span><span id="vs">0%</span></div>
-    <div class="track"><div class="fill"></div></div>
-    <p class="why">drags them under, and grinds them while it does</p>
-  </div>
-  <div class="meter" id="md">
-    <div class="row"><span class="lbl">Cooking</span><span id="vd">0</span></div>
-    <div class="track"><div class="fill"></div></div>
-    <p class="why">how many are under, and how full the pot is</p>
-  </div>
-  <div class="meter" id="mf">
-    <div class="row"><span class="lbl">Fire</span><span id="vf">0%</span></div>
-    <div class="track"><div class="fill"></div></div>
-    <p class="why">sets how often the boil lands, and how hard</p>
-  </div>
-  <p class="hint">New here? Read the <em>Cookbook</em>, top right.</p>
-</div>
+<!-- THE POT, RIGHT NOW, used to live here: three bars and a Cookbook nudge in
+     the bottom-left corner, a third of the screen away from the thing they were
+     describing. They are on the pot's belly now — see drawGauge(). -->
 
-<div id="br">
-  <span class="lbl">Jump to act · keeps progress</span>
-  <div class="acts">
-    <button data-act="1" aria-pressed="true">I</button>
-    <button data-act="2" aria-pressed="false">II</button>
-    <button data-act="3" aria-pressed="false">III</button>
-    <button data-act="4" aria-pressed="false">IV</button>
-    <button data-act="5" aria-pressed="false">V</button>
-  </div>
-</div>
+<!-- THE I-V ACT STRIP USED TO LIVE HERE, and it should not have. Acts are the
+     shape of the run: you reach act 3 by serving your way there, and a button
+     that hands you the scenery hands you the one thing the game is counting. It
+     was also the only dev control in the whole build with NO `DEV` gate — the
+     keys, the debug menu and window.__soup are all behind one, so a shipped
+     build had exactly one door left open, and it was this. Act jumping lives in
+     the debug menu now, which is gated; `--ship` asserts the strip is gone. -->
 
 <!-- one row, one gap. left to right in the order you reach for them: reference,
      reference, story, spend. UPGRADES sits at the end because it is the only one
@@ -1608,6 +1556,10 @@ function setCrowd(v){
   return CROWD?'alive':'old random walk';
 }
 let swirl=0, heat=0, flare=0, shake=0, ring=0, pending=0, boilNum=0, gainT=0;
+/* the belly vane's own angle: it INTEGRATES swirl rather than being set from
+   it, so the wheel has a position and not just a speed. Cosmetic, and left out
+   of the save on purpose — a paddle wheel's angle is not progress. */
+let vaneA=0;
 let broth=0, flav=[0,0,0];
 /* recipe-card modifiers. declared HERE and not with the cards themselves,
    because recalc() reads MOD and runs at init — a `let` further down the
@@ -1752,6 +1704,10 @@ let ptr={x:0,y:0,down:false,mode:null,overStove:false}, held=[];
 // the ladle is a physical object with mass that lags behind your hand
 let ladle={x:0,y:0,vx:0,vy:0,ang:-0.6}, wake=[], LR=40;
 let dragging=false, ladleIn=0, ladleSub=0;   // how far the bowl is under
+/* once the bowl is in the broth the drag is COMMITTED to stirring: the pot keeps
+   hold of the ladle and will not let it climb back out until you let go, so a
+   finger that wanders off the pot does not fling the tool across the kitchen. */
+let simmering=false;
 let stoke=0, stokeCd=0, fireJump=0, noWood=0, flyLogs=[];
 
 function spawn(o){
@@ -1825,7 +1781,15 @@ const CAST={
 
   /* Not hungry — on duty. His order is INVERTED: bitter must stay under a cap,
      so the lesson is to leave things on the floor. Blow the cap and he smells
-     it instantly and sends the whole bowl back. */
+     it instantly and sends the whole bowl back.
+
+     THIS CAP CANNOT FIRE, AND IT IS NOT ALONE — see the note on palate
+     calibration under `share()`. Left at 0.38 deliberately, and note that
+     tightening it is not even available: act 1 sits around 11% bitter, but a cap
+     has to clear the 0.333 neutral share (an empty pot reads 0.334 on every
+     axis), so there is no number between "cannot fire" and "unsatisfiable at
+     rest". 0.30 was tried once already and made him impossible by construction.
+     The fix is in the supply or in the rule, not in this constant. */
   inspector:{ n:'The Guild Inspector', gone:'noted', growWait:0,
     wait:'he is writing something down', base:420, grow:2.2, pat:95,
     pal:{ax:1, max:0.38}, draw(s){
@@ -2432,6 +2396,47 @@ function share(i){
   const t=flav[0]+flav[1]+flav[2];
   return t>0.01 ? flav[i]/t : 0.334;
 }
+/* ── THE CAPS ARE CALIBRATED AGAINST NOTHING IN PARTICULAR ───────────────────
+   Found while working out whether the HUD's three flavour bars were earning
+   their place. They were not, and they are gone; but the counting turned up
+   something bigger underneath, which is left standing on purpose.
+
+   Model what the pot LANDS on if you simply sweep: take each act's `kinds` list,
+   weight it by `pickKind()`'s own tier falloff, again by pop rate (~1/tough,
+   since `done` accumulates divided by toughness), and again by the flavour a pop
+   actually adds, `(1 + rich×0.02) × fmul`. Against the cap each act introduces:
+
+     act 1   sweet 53  bitter 11  umami 36    Inspector  bitter ≤38%  → 27 pts of
+                                              slack. UNREACHABLE.
+     act 3   sweet 25  bitter 30  umami 45    Council    sweet  ≤44%  → 19 pts.
+                                              Also unreachable.
+     act 4   sweet 14  bitter 67  umami 19    Pantheon   all 3  ≤46%  → bitter is
+                                              21 pts OVER before you decide
+                                              anything. Auto-blown.
+     act 5   sweet 62  bitter 31  umami  8    The Cook   your top axis ≤44%
+                                              → 18 pts over. Auto-blown.
+
+   So it is wrong in both directions: the two caps that arrive while the player
+   is learning cannot be tripped, and the two that arrive at the end are already
+   broken on delivery. That is not a difficulty curve, it is four numbers that
+   were never checked against the supply.
+
+   AND THE OBVIOUS FIX IS NOT AVAILABLE. A cap cannot simply be tightened to
+   meet the supply, because `share()` returns 0.334 on an empty pot and every cap
+   has to clear the 0.333 neutral share or it is blown before you cook anything.
+   The Inspector was set to 0.30 once and was unsatisfiable by construction. So
+   for acts 1 and 3 there is no constant between "cannot fire" and "impossible":
+   the capped axis is naturally BELOW neutral there, and the rule has nowhere to
+   sit.
+
+   NOT FIXED HERE, deliberately. The model is honest but coarse: pop rate is a
+   proxy, and it ignores `flee`/`seek` — a rat at 0.95 flee mostly never reaches
+   the pot, a saint at −0.55 walks in on its own — so the mix that ENTERS is not
+   the mix that spawns. Two ways in when it is picked up, neither a constant:
+   move the SUPPLY so the capped axis is one the act actually produces (which is
+   an ingredient-table job), or let the diner read the pot when it knocks, as the
+   Cook already does with `mirror:0.44` — self-calibrating by construction, less
+   arithmetic, and more character. The second is the better bet. */
 /* ── WHY ALMOST EVERY PALATE IS A CAP ────────────────────────────────────────
    Matias, on trying to play the old ones: *"it's really hard to choose which
    ingredients to put in the pot."* Correct, and it invalidates every quota. With
@@ -2517,10 +2522,12 @@ function stepDiner(dt){
   doorKick=Math.max(0,doorKick-dt*2.4);
   if(!diner){
     /* WHAT BRINGS SOMEBODY TO THE DOOR.  this used to be pure time — a rate set
-       by `allure`, which is a smoothed function of total flavour and therefore
-       barely moves minute to minute. So it read as a stopwatch: a bar creeping
-       at a constant speed whatever you did, and nothing you cooked ever visibly
-       affected it.
+       by `allure` back when allure was a smoothed function of TOTAL flavour, and
+       therefore barely moved minute to minute. (Allure is a rate of pops now,
+       and flavour's magnitude drives nothing at all — only its shares, and only
+       for palate caps. The old description outlived the thing it described.) So
+       it read as a stopwatch: a bar creeping at a constant speed whatever you
+       did, and nothing you cooked ever visibly affected it.
 
        Cooking drives it now, and this is only the floor: word gets out on its
        own eventually, so an idle kitchen is not sealed shut, but slowly — about
@@ -3102,7 +3109,7 @@ cv.addEventListener('pointerdown',e=>{ const p=loc(e);
   if(onDoor(p.x,p.y)&&letThemIn()){ ptr.mode='door'; }
   else if(onStove(p.x,p.y)){ ptr.mode='stoke'; throwLog(); }
   else {
-    ptr.mode='drag'; dragging=true; ladleIn=0;
+    ptr.mode='drag'; dragging=true; ladleIn=0; simmering=false;
     // it flies in from off to the lower right, fast
     ladle.x=p.x+R*0.55; ladle.y=p.y+R*0.45; ladle.vx=0; ladle.vy=0;
     document.body.classList.add('drag');
@@ -3182,8 +3189,30 @@ function step(dt){
      It goes HERE and not in `loc()`. `ptr` is also what tests the stove and the
      hatch for taps, so lifting it there would have moved those hit targets along
      with the tool — the ladle is what should be offset, not the finger. */
-  const tx=ptr.x, ty=ptr.y-LIFT;
+  let tx=ptr.x, ty=ptr.y-LIFT;
   const inBroth = dragging && inPot(ladle.x,ladle.y);
+  if(inBroth) simmering=true;          // the drag is now committed to stirring
+  /* CONTAIN THE LADLE IN THE POT WHILE SIMMERING.  Stirring a moving target with
+     the whole floor to fall off of was the thing playtesters fought hardest. So
+     once committed, clamp the FINGER's target — not the bowl itself — a hair
+     inside inPot()'s rim. Clamping the target keeps the snappy spring smooth: the
+     bowl just rides the near rim toward wherever the finger has wandered and
+     glides straight back in when it returns, and it never leaves the broth until
+     you lift off. (Clamping the bowl's own position instead would make the stiff
+     spring shove against the wall and jitter.) */
+  if(simmering && dragging){
+    /* While the finger is over the pot the bowl reaches all the way to the rim —
+       that is the responsive stir we want. The moment the finger wanders fully
+       OFF the pot, pull the bowl in to a comfortable resting spot well inside the
+       broth, leaving room for its own radius (LR) so a big upgraded ladle rests
+       as cleanly as a small one, instead of pinning it on the rim where it reads
+       as climbing out. */
+    const rx = inPot(ptr.x,ptr.y-LIFT) ? BR*0.94
+             : Math.max(BR*0.34, BR-(LR*0.9+BR*0.16));
+    const ry = rx*YS;
+    const ex=(tx-cx)/rx, ey=(ty-by)/ry, e=Math.hypot(ex,ey);
+    if(e>1){ tx=cx+ex/e*rx; ty=by+ey/e*ry; }
+  }
   let load=0; for(const it of items) if(it.st==='float'||it.st==='sunk') load++;
   /* the bowl dips under the surface while it is in the broth, and deeper while
      you press down. going IN eases, so it looks like it is displacing soup —
@@ -3193,8 +3222,17 @@ function step(dt){
     const subWant = ptr.down?0.92:0.55;
     ladleSub += (subWant-ladleSub)*Math.min(1,dt*7);
   } else ladleSub=0;
-  const DAMP = inBroth ? 17 + Math.min(8,load*0.4) : 14;   // broth resists, a bit
-  const SPRING = 150;
+  /* SIMMERING WANTS TO BE SNAPPY.  Out on the floor a little lag reads as the
+     weight of a heavy tool on a handle, and that is good. But the instant the
+     bowl is in the broth the player is stirring, and any gap between finger and
+     bowl reads as the controls fighting them — playtesters bounced off exactly
+     this. So the spring stiffens hard in the broth (≈4× on a fixed 1/60 step, so
+     it is snappy but never unstable): the bowl tracks the finger almost rigidly,
+     and swirl — read straight off the bowl's own velocity — answers the gesture
+     now instead of a damped echo of it. Damping stays near-critical so it does
+     not overshoot, and it still leans a touch heavier as the pot fills. */
+  const SPRING = inBroth ? 600 : 150;
+  const DAMP   = inBroth ? 34 + Math.min(6,load*0.3) : 14;
   ladle.vx += ((tx-ladle.x)*SPRING - ladle.vx*DAMP)*dt;
   ladle.vy += ((ty-ladle.y)*SPRING - ladle.vy*DAMP)*dt;
   const MAXV = ST.maxv, sp0 = Math.hypot(ladle.vx,ladle.vy);
@@ -3210,14 +3248,25 @@ function step(dt){
     const px=ladle.x-cx, py=(ladle.y-by)/YS, pr=Math.max(1,Math.hypot(px,py));
     const vtan = (-py/pr)*ladle.vx + (px/pr)*(ladle.vy/YS);
     const lean = clamp(-vtan/2600, -0.32, 0.32);
-    const aimA = Math.atan2(oy,ox) + lean;
+    let aimA = Math.atan2(oy,ox) + lean;
+    /* WHEN THE HAND WANDERS OFF THE POT the bowl is pinned at the rim, and the
+       usual "up and out" aim would swing the handle toward the finger's rim and
+       read as a giant arm reaching in from the corner. Rest it upright instead —
+       leaning a touch toward the hand — so a contained ladle sits in the broth
+       like a spoon left in the pot rather than a stray limb. */
+    if(simmering && dragging && !inPot(ptr.x,ptr.y-LIFT)){
+      const tilt = clamp((ptr.x-ladle.x)/(R*2.2), -0.4, 0.4);
+      aimA = -Math.PI/2 + lean + tilt;
+    }
     let da = aimA-ladle.ang;
     while(da>Math.PI)da-=TAU; while(da<-Math.PI)da+=TAU;
     ladle.ang += da*Math.min(1,dt*11);
   }
 
-  /* ---- swirl is now the ladle's SIGNED tangential speed, and only counts
-     where a real spoon would work: mid-radius, not the middle, not the wall. ---- */
+  /* ---- swirl is the ladle's tangential speed, and only counts where a real
+     spoon would work: mid-radius, not the middle, not the wall. It keeps its
+     SIGN so the broth turns the way you pushed it — but the sign buys nothing
+     and costs nothing; every effect downstream reads |swirl|. ---- */
   if(inBroth){
     const dx=ladle.x-cx, dy=(ladle.y-by)/YS, r=Math.max(1,Math.hypot(dx,dy));
     const vt = (-dy/r)*ladle.vx + (dx/r)*(ladle.vy/YS);
@@ -3281,7 +3330,39 @@ function step(dt){
 
   const dec=dt*ST.decay;
   swirl = swirl>0 ? Math.max(0,swirl-dec) : Math.min(0,swirl+dec);
-  if(swirl<ST.convect) swirl=Math.min(ST.convect,swirl+dt*0.55);   // convection floor
+  /* ── EITHER WAY ROUND IS STIRRING ────────────────────────────────────────
+     The convection floor used to be written against the SIGN: `if(swirl <
+     convect) swirl = min(convect, swirl + dt*0.55)`. Read that with the pot
+     turning the other way and it is not a floor at all, it is a brake — it
+     dragged a negative swirl back toward zero at 0.55/s on top of the 0.14/s
+     decay, so stirring one way bled off nearly five times faster than stirring
+     the other, before any upgrade was even bought. That was the only mechanical
+     difference between the two directions; every reward already read |swirl|.
+
+     So the floor works on the MAGNITUDE, in whichever direction the pot is
+     already turning. Sign now decides one thing only: which way things go
+     round. It is a matter of handedness, not of skill. */
+  const sdir = swirl<0 ? -1 : 1;
+  if(Math.abs(swirl)<ST.convect)
+    swirl = sdir*Math.min(ST.convect, Math.abs(swirl)+dt*0.55);
+  /* the belly vane integrates swirl instead of being set from it, so the wheel
+     has a POSITION — which is what makes the direction legible in a still
+     frame and not only in motion. Cosmetic, and deliberately not saved.
+
+     THE RAMP IS NOT LINEAR, and the ceiling is not a taste decision. A flat
+     ×5.2 gave 0.83 rev/s at a full stir — under one turn a second, which reads
+     as a lazy wheel at the exact moment the pot should look frantic. So speed
+     climbs as |swirl|^1.7: a gentle stir still turns lazily, and 100% is 3.5
+     rev/s, which with three blades is eleven blade-passes a second.
+
+     The ceiling is set by ALIASING, not by nerve. The wheel is 3-fold
+     symmetric, so it looks identical every 120° and appears to STALL at 60° of
+     travel per frame, then run backwards past that — the wagon-wheel effect,
+     and it would read as a bug. 22 rad/s is 21°/frame at 60fps and 42°/frame at
+     30, so it stays the right way round on a slow machine too. Going faster
+     needs the blur below, not more radians. */
+  const vspin = 3.2 + 19*Math.pow(Math.abs(swirl),1.7);
+  vaneA += swirl*dt*vspin;
   const AS=Math.abs(swirl);
   // above a full fire it burns off fast — a roar is temporary
   /* what is in the pot, measured once, from last frame's states — so every
@@ -4198,13 +4279,20 @@ function drawLipAndBroth(){
 function drawSurface(){
   ctx.save();
   ctx.beginPath(); ctx.ellipse(cx,by,BR,BR*YS,0,0,TAU); ctx.clip();
-  // swirl streaks
-  const rings=3+Math.round(swirl*5);
+  /* SWIRL STREAKS. Everything here that says HOW HARD reads the magnitude, and
+     only the two terms that say WHICH WAY keep the sign — the tilt, and the
+     direction the arcs travel. Written against the signed value, a pot stirred
+     the other way lost its streaks entirely: `rings` counted DOWN from three,
+     the ellipses grew instead of tightening, and the alpha `.10 + swirl*.34`
+     went negative, so the surface of a hard-stirred pot rendered as flat and
+     still. Half the players' stirring looked like it did nothing. */
+  const as=Math.abs(swirl), sgn=swirl<0?-1:1;
+  const rings=3+Math.round(as*5);
   for(let k=1;k<=rings;k++){ const f=k/(rings+1);
     ctx.beginPath();
-    ctx.ellipse(cx,by,R*f*(1-swirl*.2),R*f*(1-swirl*.2)*YS,
-      swirl*T*1.2, 0.4+T*(0.4+swirl*2.4)+k, 2.4+T*(0.4+swirl*2.4)+k);
-    ctx.strokeStyle=`rgba(255,238,200,${.10+swirl*.34})`;
+    ctx.ellipse(cx,by,R*f*(1-as*.2),R*f*(1-as*.2)*YS,
+      sgn*as*T*1.2, 0.4+sgn*T*(0.4+as*2.4)+k, 2.4+sgn*T*(0.4+as*2.4)+k);
+    ctx.strokeStyle=`rgba(255,238,200,${.10+as*.34})`;
     ctx.lineWidth=Math.max(1.5,R*0.016); ctx.lineCap='round'; ctx.stroke(); }
   // bubbles
   for(const b of bubbles){
@@ -4217,7 +4305,8 @@ function drawSurface(){
   ctx.restore();
   // foam ring at the wall
   ctx.beginPath(); ctx.ellipse(cx,by,BR*0.98,BR*0.98*YS,0,0,TAU);
-  ctx.lineWidth=Math.max(2,R*0.03); ctx.strokeStyle=`rgba(255,235,190,${0.28+swirl*0.3})`;
+  ctx.lineWidth=Math.max(2,R*0.03);
+  ctx.strokeStyle=`rgba(255,235,190,${0.28+Math.abs(swirl)*0.3})`;
   ctx.stroke();
 }
 function drawWake(){
@@ -4380,16 +4469,12 @@ function drawAim(){
 function drawLadleLoad(){
   if(!held.length) return;
   const full=held.length>=ST.hold;
-  const w=R*0.20, h=R*0.105, x=ladle.x, y=ladle.y-R*0.40;
-  // capacity pips, so it reads even without the number
-  const pw=w*1.9/ST.hold;
-  for(let i=0;i<ST.hold;i++){
-    const px=x-w*0.95+i*pw+pw*0.5;
-    ctx.beginPath(); ctx.arc(px,y+h*1.35,Math.max(1.6,pw*0.22),0,TAU);
-    ctx.fillStyle=i<held.length?(full?'#FF9A6A':'#FFD35C'):'rgba(255,255,255,.18)';
-    ctx.fill();
-  }
-  // the count
+  const x=ladle.x, y=ladle.y-R*0.40;
+  /* THE COUNT, AND ONLY THE COUNT. there used to be a row of capacity pips
+     under this so the load read without the number — but the number is right
+     there, and at hold 1 the row was a single pip scaled to `R*0.38/hold`,
+     which put a salmon blob the size of an ingredient on top of whatever you
+     had just scooped. Two ways of saying 1/1, one of them obscuring the pot. */
   ctx.font='700 '+Math.round(Math.max(12,R*0.10))+'px ui-monospace,Menlo,monospace';
   ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.lineWidth=Math.max(4,R*0.026); ctx.lineJoin='round';
@@ -4613,41 +4698,231 @@ function drawFoam(){
   }
   ctx.restore();
 }
-function drawGauge(){
-  // brass pressure gauge riveted to the pot's belly — the precise readout
-  const gx=cx+R*0.60, gy=cy+R*0.56, rr=R*0.20;
+/* ═══ THE BELLY IS THE READOUT ═══════════════════════════════════════════════
+   Swirl, cooking and fire were three bars in the bottom-left corner — a third
+   of the screen away from the pot they describe, in a place you have no reason
+   to look while you are stirring. They are fittings on the pot now.
+
+   WHY HERE. The bare metal between the broth and the stove looks like 0.9R of
+   room. It is not. The broth is painted AFTER the body (drawPotBack, then
+   drawLipAndBroth) and its front edge MOVES with the level: as the pot empties
+   the surface drops but its ellipse also narrows, so the near edge reaches
+   LOWEST when the pot is EMPTIEST — cy+0.504R at the centre, cy+0.408R out at
+   the dial. Everything above that is under soup at some point in every boil. So
+   the honest band is 0.50R tall and 2R wide — a letterbox — which is why this is
+   three small instruments spread across it and not one big dial. The largest
+   centred dial the band can hold, bezel and all, is r=0.215R. Measured in
+   belly.html; the numbers are asserted in test/bellycheck.mjs.
+
+   WHY THESE SHAPES. Each instrument's form IS its reading, so none of them
+   needs its label to work at a glance:
+     · the VANE turns the way the soup turns, and how fast it turns is the
+       reading — a bar could show the speed but not the turning, and a wheel
+       that has stalled is a thing you notice without reading anything;
+     · the GLASS fills as the pot loads, with capacity etched on it in red;
+     · the DIAL is unmoved, and its rim now carries the throttle — because
+       `fire` is not a second reading, it is what drives this needle
+       (heat += dt/period · (0.30 + fire·2.20)). Cause on the face of its effect.
+   The pot keeps the things it already mimes better than any instrument: the
+   level is the fullness, the foam is the coming boil, the rim shouts the
+   boil-over. Nothing here re-prints those. ════════════════════════════════ */
+const BRASS='#C89A4A', BRASSHI='#E7C685', BRASSLO='#8A6526', DIALFACE='#F3E7CC';
+const DA0=Math.PI*0.75, DA1=Math.PI*2.25;      // the dial's sweep, both ends
+/* save/restore rather than setting textAlign and textBaseline back by hand:
+   canvas text state is global, and a helper that leaks `middle` or `left` into
+   the next label anywhere in the frame is a bug that shows up somewhere else
+   entirely. */
+function gEtch(t,x,y,s,col,align){
   ctx.save();
-  ctx.beginPath(); ctx.arc(gx,gy,rr,0,TAU);
-  ctx.fillStyle='#C89A4A'; ctx.fill();
-  ctx.lineWidth=4.5; ctx.strokeStyle=INK; ctx.stroke();
-  ctx.beginPath(); ctx.arc(gx,gy,rr*0.80,0,TAU);
-  ctx.fillStyle='#F3E7CC'; ctx.fill();
-  ctx.lineWidth=3; ctx.strokeStyle=INK; ctx.stroke();
-  // red zone at the top of the sweep
-  const A0=Math.PI*0.75, A1=Math.PI*2.25;
-  ctx.beginPath(); ctx.arc(gx,gy,rr*0.64,A0+(A1-A0)*0.78,A1);
-  ctx.lineWidth=rr*0.16; ctx.strokeStyle='#D8484F'; ctx.stroke();
-  ctx.lineWidth=2.4; ctx.strokeStyle=INK;
-  for(let i=0;i<=8;i++){
-    const a=A0+(A1-A0)*(i/8);
+  ctx.font='700 '+Math.round(s)+'px ui-monospace,Menlo,monospace';
+  ctx.textAlign=align||'center'; ctx.textBaseline='middle';
+  ctx.lineWidth=Math.max(2.4,s*0.34); ctx.lineJoin='round';
+  ctx.strokeStyle=INK; ctx.strokeText(t,x,y);
+  ctx.fillStyle=col; ctx.fillText(t,x,y);
+  ctx.restore();
+}
+function gGlare(x,y,r){
+  ctx.beginPath(); ctx.ellipse(x-r*0.28,y-r*0.34,r*0.30,r*0.16,-0.6,0,TAU);
+  ctx.fillStyle='rgba(255,255,255,.42)'; ctx.fill();
+}
+function gRivet(x,y,r){
+  ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fillStyle=BRASSLO; ctx.fill();
+  ctx.lineWidth=Math.max(1,r*0.5); ctx.strokeStyle=INK; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x-r*0.25,y-r*0.28,r*0.34,0,TAU);
+  ctx.fillStyle=rgba(BRASSHI,0.8); ctx.fill();
+}
+/* ── SWIRL, as a paddle wheel ─────────────────────────────────────────────── */
+function drawVane(x,y,r){
+  const sp=Math.abs(swirl);
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fillStyle=BRASS; ctx.fill();
+  ctx.lineWidth=Math.max(3,r*0.22); ctx.strokeStyle=INK; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x,y,r*0.80,0,TAU);
+  ctx.fillStyle=mix(A.brothLo,'#2A1B14',0.35); ctx.fill();
+  ctx.lineWidth=Math.max(2,r*0.15); ctx.strokeStyle=INK; ctx.stroke();
+  // the current it sits in, so the glass is not empty when the wheel is still
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x,y,r*0.76,0,TAU); ctx.clip();
+  for(let i=0;i<3;i++){
+    const a=vaneA*0.6+i*TAU/3;
+    ctx.beginPath(); ctx.arc(x,y,r*(0.30+i*0.18),a,a+1.5+sp*1.2);
+    ctx.lineWidth=Math.max(1.2,r*0.07);
+    ctx.strokeStyle=rgba(A.brothHi,0.10+sp*0.30); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.translate(x,y);
+  /* ONE SET OF BLADES, DRAWN A FEW TIMES BEHIND ITSELF. A frame is a still, and
+     a still of a fast wheel is indistinguishable from a still of a slow one —
+     so past a light stir the wheel trails ghosts of itself back along the way
+     it came, more of them and further apart the harder it turns. That is what
+     makes it read as FAST rather than merely rotated, and it is also what keeps
+     the speed honest: the rotation itself stays under the 3-fold aliasing limit
+     (see the ramp in the sim) and the blur carries the rest of the impression.
+     Ghosts are drawn BEHIND, never ahead — a lead ghost reads as two wheels. */
+  const blades=(alpha,rot)=>{
+    ctx.save(); ctx.rotate(rot); ctx.globalAlpha=alpha;
+    for(let i=0;i<3;i++){
+      ctx.save(); ctx.rotate(i*TAU/3);
+      ctx.beginPath(); ctx.moveTo(0,0);
+      ctx.quadraticCurveTo(r*0.30,-r*0.16,r*0.66,-r*0.06);
+      ctx.quadraticCurveTo(r*0.34,r*0.10,0,r*0.12);
+      ctx.closePath();
+      // one blade is marked, so which way it went is legible in a screenshot
+      ctx.fillStyle=i===0?mix(BRASSHI,'#FFD35C',0.5):BRASSHI; ctx.fill();
+      ctx.lineWidth=Math.max(1.4,r*0.09); ctx.strokeStyle=INK; ctx.stroke();
+      ctx.restore();
+    }
+    ctx.restore();
+  };
+  const smear=Math.max(0,sp-0.22)/0.78;          // nothing to blur at a crawl
+  if(smear>0.01){
+    const n=1+Math.round(smear*3), lag=(swirl<0?1:-1)*smear*0.42;
+    for(let g=n;g>=1;g--) blades(0.13*(1-g/(n+1))+0.05, vaneA+lag*(g/n));
+  }
+  blades(1,vaneA);
+  ctx.beginPath(); ctx.arc(0,0,r*0.13,0,TAU); ctx.fillStyle=INK; ctx.fill();
+  ctx.restore();
+  gGlare(x,y,r);
+  /* both arrows are gold. The pink one used to mean "you are stirring the wrong
+     way", and there is no wrong way — the glyph reports handedness, not a
+     mistake, and colouring one of them like a warning was the loudest surviving
+     claim that one direction was worse. */
+  gEtch((swirl<-0.02?'↺ ':swirl>0.02?'↻ ':'· ')+Math.round(sp*100)+'%',
+        x,y+r*1.34,Math.max(8,r*0.34),'#FFD35C');
+}
+/* ── COOKING, as a sight glass ────────────────────────────────────────────── */
+function drawSightGlass(x,y,w,h){
+  const frac=clamp(volIn/Math.max(1,ST.pot),0,1.35), over=spread<0.995;
+  const r=w*0.5, top=y-h/2, bot=y+h/2, collar=w*0.34, cw=w*1.72;
+  ctx.save();
+  const tube=()=>{ ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x-r,top,w,h,r*0.5) : ctx.rect(x-r,top,w,h); };
+  /* an EMPTY glass has to read as glass, not as a hole punched in the pot. Near
+     black did the latter: with nothing in the pot the fitting looked like a slot
+     you could post a letter through. So the dry part of the tube is dark BROTH
+     — residue in a used glass — and the whole thing keeps a brass hairline down
+     each side to close the frame the collars start. */
+  tube(); ctx.fillStyle=mix(A.brothLo,'#140E12',0.80); ctx.fill();
+  ctx.save(); tube(); ctx.clip();
+  const lvlY=bot-(h-collar*1.2)*Math.min(1,frac);
+  const bg=ctx.createLinearGradient(0,lvlY,0,bot);
+  bg.addColorStop(0,A.brothHi); bg.addColorStop(1,A.brothLo);
+  ctx.fillStyle=bg; ctx.fillRect(x-r,lvlY,w,bot-lvlY);
+  ctx.beginPath(); ctx.moveTo(x-r,lvlY); ctx.lineTo(x+r,lvlY);
+  ctx.lineWidth=Math.max(1.4,w*0.11); ctx.strokeStyle=A.foam; ctx.stroke();
+  // bubbles climbing the glass: the fire, seen from the side
+  for(let i=0;i<4;i++){
+    const ph=(T*(0.4+fire*0.55)+i*0.27)%1, by2=bot-ph*(bot-lvlY);
+    if(by2<lvlY) continue;
+    ctx.beginPath(); ctx.arc(x+Math.sin(ph*7+i)*r*0.42,by2,Math.max(1,w*0.10),0,TAU);
+    ctx.fillStyle=rgba(A.foam,(1-ph)*0.6); ctx.fill();
+  }
+  // and ST.pot itself, etched on the glass in red: the line you are crossing
+  const capY=bot-(h-collar*1.2)*Math.min(1,ST.pot/Math.max(ST.pot,volIn));
+  ctx.beginPath(); ctx.moveTo(x-r,capY); ctx.lineTo(x+r,capY);
+  ctx.lineWidth=Math.max(1.2,w*0.08); ctx.strokeStyle='rgba(255,143,160,.85)'; ctx.stroke();
+  ctx.restore();
+  for(const s of [-1,1]){
     ctx.beginPath();
-    ctx.moveTo(gx+Math.cos(a)*rr*0.74, gy+Math.sin(a)*rr*0.74);
-    ctx.lineTo(gx+Math.cos(a)*rr*0.56, gy+Math.sin(a)*rr*0.56);
+    ctx.moveTo(x+s*r,top+collar*0.5); ctx.lineTo(x+s*r,bot-collar*0.5);
+    ctx.lineWidth=Math.max(1.2,w*0.10); ctx.lineCap='round';
+    ctx.strokeStyle=rgba(BRASSLO,0.9); ctx.stroke();
+  }
+  tube(); ctx.lineWidth=Math.max(2,w*0.13); ctx.strokeStyle=INK; ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x-r*0.52,top+collar); ctx.lineTo(x-r*0.52,bot-collar);
+  ctx.lineWidth=Math.max(1,w*0.07); ctx.lineCap='round';
+  ctx.strokeStyle='rgba(255,255,255,.24)'; ctx.stroke();
+  for(const cy2 of [top+collar*0.28,bot-collar*0.28]){
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x-cw/2,cy2-collar/2,cw,collar,collar*0.30)
+                  : ctx.rect(x-cw/2,cy2-collar/2,cw,collar);
+    ctx.fillStyle=BRASS; ctx.fill();
+    ctx.lineWidth=Math.max(1.8,w*0.11); ctx.strokeStyle=INK; ctx.stroke();
+    gRivet(x-cw/2+collar*0.34,cy2,Math.max(1.4,collar*0.17));
+    gRivet(x+cw/2-collar*0.34,cy2,Math.max(1.4,collar*0.17));
+  }
+  ctx.restore();
+  /* the count goes BESIDE the glass. Under it is the pot's foot — the band has
+     no vertical room to spare, and a label that needs some is a label that
+     will end up on the stove. */
+  const col=over?(risk>0.02?'#FF8FA0':'#F0A03C'):'#FFD35C';
+  gEtch(String(nIn),x+cw*0.62,y-w*0.30,Math.max(11,w*0.62),col,'left');
+  gEtch('UNDER',x+cw*0.62,y+w*0.26,Math.max(7,w*0.30),rgba(BRASSHI,0.95),'left');
+  if(over) gEtch('×'+spread.toFixed(2),x+cw*0.62,y+w*0.78,Math.max(7,w*0.30),col,'left');
+}
+/* ── THE BOIL, and the fire that drives it ────────────────────────────────── */
+function drawBoilDial(x,y,r){
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.fillStyle=BRASS; ctx.fill();
+  ctx.lineWidth=Math.max(3,r*0.22); ctx.strokeStyle=INK; ctx.stroke();
+  /* THE THROTTLE, on the bezel. Length is `fire`, and past 1.0 the whole arc
+     goes pink and pulses — the fire runs to 1.25 and the old bar clamped its
+     track, so the top fifth of the range could not be drawn at all. */
+  ctx.lineWidth=r*0.15; ctx.lineCap='butt';
+  ctx.beginPath(); ctx.arc(x,y,r*1.02,DA0,DA1);
+  ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x,y,r*1.02,DA0,DA0+(DA1-DA0)*Math.min(1,fire));
+  ctx.strokeStyle=mix(A.flame[0],A.flame[1],Math.min(1,fire)); ctx.stroke();
+  if(fire>1){
+    ctx.beginPath(); ctx.arc(x,y,r*1.02,DA0,DA1);
+    ctx.strokeStyle=`rgba(255,143,160,${0.35+0.45*Math.sin(T*9)})`; ctx.stroke();
+  }
+  ctx.beginPath(); ctx.arc(x,y,r*0.80,0,TAU);
+  ctx.fillStyle=DIALFACE; ctx.fill();
+  ctx.lineWidth=Math.max(2,r*0.15); ctx.strokeStyle=INK; ctx.stroke();
+  ctx.beginPath(); ctx.arc(x,y,r*0.64,DA0+(DA1-DA0)*0.78,DA1);
+  ctx.lineWidth=r*0.16; ctx.strokeStyle='#D8484F'; ctx.stroke();
+  ctx.lineWidth=Math.max(1.6,r*0.10); ctx.strokeStyle=INK;
+  for(let i=0;i<=8;i++){
+    const a=DA0+(DA1-DA0)*(i/8);
+    ctx.beginPath();
+    ctx.moveTo(x+Math.cos(a)*r*0.74, y+Math.sin(a)*r*0.74);
+    ctx.lineTo(x+Math.cos(a)*r*0.56, y+Math.sin(a)*r*0.56);
     ctx.stroke();
   }
-  // the needle
-  const a=A0+(A1-A0)*clamp(heat,0,1)+(fireJump?Math.sin(T*40)*0.05*fireJump:0);
+  // how long the sweep takes at this throttle — the one number worth printing
+  gEtch((ST.period/(0.30+fire*2.20)).toFixed(1)+'s',x,y+r*0.44,
+        Math.max(7,r*0.26),'#6E5A3A');
+  const a=DA0+(DA1-DA0)*clamp(heat,0,1)+(fireJump?Math.sin(T*40)*0.05*fireJump:0);
   ctx.beginPath();
-  ctx.moveTo(gx-Math.cos(a)*rr*0.16, gy-Math.sin(a)*rr*0.16);
-  ctx.lineTo(gx+Math.cos(a)*rr*0.70, gy+Math.sin(a)*rr*0.70);
-  ctx.lineWidth=Math.max(3,rr*0.13); ctx.lineCap='round';
+  ctx.moveTo(x-Math.cos(a)*r*0.16, y-Math.sin(a)*r*0.16);
+  ctx.lineTo(x+Math.cos(a)*r*0.70, y+Math.sin(a)*r*0.70);
+  ctx.lineWidth=Math.max(3,r*0.13); ctx.lineCap='round';
   ctx.strokeStyle=heat>0.78?'#B01B2B':INK; ctx.stroke();
-  ctx.beginPath(); ctx.arc(gx,gy,rr*0.13,0,TAU);
-  ctx.fillStyle=INK; ctx.fill();
-  // glass glare
-  ctx.beginPath(); ctx.ellipse(gx-rr*0.28,gy-rr*0.34,rr*0.30,rr*0.16,-0.6,0,TAU);
-  ctx.fillStyle='rgba(255,255,255,.42)'; ctx.fill();
+  ctx.beginPath(); ctx.arc(x,y,r*0.13,0,TAU); ctx.fillStyle=INK; ctx.fill();
+  gGlare(x,y,r);
   ctx.restore();
+}
+function drawGauge(){
+  /* the vane MIRRORS the dial — same y, same radius — so the pair reads as two
+     fittings of one machine. Both take the identical hair of broth across the
+     top rim that the dial has always taken. The glass goes between and lower,
+     where the band is shallowest and only a narrow standing thing fits. */
+  const r=R*0.20;
+  drawVane(cx-R*0.60, cy+R*0.56, r);
+  drawSightGlass(cx-R*0.10, cy+R*0.76, R*0.19, R*0.34);
+  drawBoilDial(cx+R*0.60, cy+R*0.56, r);
 }
 /* ─────────────────────────────────────────────────────────────
    DRAW A CHARACTER
@@ -5374,45 +5649,43 @@ function draw(under){
   const bEl=document.getElementById('broth');
   bEl.textContent=fmt(broth);
   bEl.style.transform='scale('+(1+purseHit*0.22)+')';
-  /* THE THREE BARS ARE SHARES NOW.  they were normalised to the largest of the
-     three, so the biggest was always 100% and the set never looked full or
-     empty — it just showed a ratio, of a thing whose ratio then affected
-     nothing. They are shares of the whole, they add up to 100%, they move while
-     you cook, and they are the exact number every palate rule is written
-     against. And when somebody at the hatch has a cap, the bar it applies to
-     turns red the moment you cross it. */
-  const pcap=(()=>{
-    if(!diner) return null;
-    const c=diner.c, p=diner.pal||c.pal;
-    if(c.pal3!==undefined) return {all:c.pal3};
-    if(p&&p.max!==undefined) return {ax:p.ax, max:p.max};
-    return null;
-  })();
-  for(let i=0;i<3;i++){
-    const sh=share(i);
-    const cap = pcap ? (pcap.all!==undefined?pcap.all
-                       : pcap.ax===i?pcap.max : null) : null;
-    const over = cap!==null && sh>cap;
-    setTxt(document.getElementById('v'+i),
-           Math.round(sh*100)+'%'+(cap!==null?' / '+Math.round(cap*100):''));
-    const el=document.querySelector('#f'+i+' .fill');
-    el.style.width=(sh*100)+'%';
-    el.style.background = over ? '#FF8FA0' : '';
-  }
+  /* ── SWEET / BITTER / UMAMI ARE GONE FROM THE HUD ────────────────────────
+     Matias, looking at them: *"there's no way for me as a player to affect
+     that, is there? so what are the meters actually even doing for me?"* Half
+     right, and the half that was wrong is the reason they are gone rather than
+     fixed.
+
+     You CAN move them. `flav` decays at 10%/s — a 6.6 second half-life — so the
+     bars were a live profile, and the lever is which clump you sweep: every kind
+     has a fixed axis, the crowd huddles by kind, and the floor tint exists to
+     make those clumps identifiable. Steerable, and it answers within seconds.
+
+     But the bars were the wrong instrument for it, and the counting says so.
+     Only four of ten diners have a rule written against these shares, and what
+     the pot lands on if you simply sweep is:
+
+        act 1  Inspector  bitter ≤ 38%   supply 25%   13 pts of slack
+        act 3  Council    sweet  ≤ 44%   supply 40%    4 pts
+        act 4  Pantheon   all 3  ≤ 46%   worst 44%     2 pts
+        act 5  The Cook   your top axis ≤ 44%, and act 5 lands at 73% SWEET
+                          because `city` is worth 8000 richness
+
+     So the readout was inverted: decoration for the whole of the tutorial, and
+     critical exactly once, in act 5, after four acts of teaching the player to
+     ignore it. Six diners have no share rule at all. And when a cap IS live the
+     diner's own ticket already draws that axis with its threshold and an
+     over-cap state — this loop was a second copy of it, without the context,
+     printed permanently.
+
+     What is lost is anticipation: you can no longer watch the profile drift
+     before somebody knocks. That was worth nothing in acts 1–2 and something in
+     act 5, and the ticket is where it belongs when it matters. `share()` and
+     `AXC` stay — the ticket, `palBlown()` and the floor tint all still use them. */
   document.getElementById('varo').textContent =
     allure<0.02 ? 'faint' : '+'+(allure*100).toFixed(0)+'% they walk in';
-  document.getElementById('vs').textContent=
-    (swirl<-0.02?'↺ ':swirl>0.02?'↻ ':'')+Math.round(Math.abs(swirl)*100)+'%';
-  document.querySelector('#ms .fill').style.width=(Math.abs(swirl)*100)+'%';
-  const dEl=document.getElementById('vd');
-  dEl.textContent = nIn + (spread<0.995 ? '  ×'+spread.toFixed(2)+' each' : '');
-  dEl.style.color = spread<0.85 ? '#FF8FA0' : '';
-  const dFill=document.querySelector('#md .fill');
-  dFill.style.width=Math.min(100,volIn/Math.max(1,ST.pot)*100)+'%';
-  dFill.style.background = risk>0.02 ? '#FF8FA0' : (spread<0.995 ? '#F0A03C' : '');
-  const iv=ST.period/(0.30+fire*2.20);
-  document.getElementById('vf').textContent=Math.round(fire*100)+'% · boil '+iv.toFixed(1)+'s';
-  document.querySelector('#mf .fill').style.width=(fire*100)+'%';
+  /* swirl, cooking and fire used to be written into three DOM meters here. They
+     are drawn on the pot now — drawGauge() reads the same globals directly, so
+     there is no per-frame DOM write left for them at all. */
   tickPanel();
 }
 
@@ -5585,7 +5858,6 @@ function goAct(n){
   document.documentElement.style.setProperty('--gold',A.brothHi);
   document.body.style.background=A.room;
   resize(); makeStars(); makeMotes();
-  if(typeof paintActBtns==='function') paintActBtns();
   return true;
 }
 /* actFor now lives with the running order, up by ARRIVALS — the act and the
@@ -5602,11 +5874,6 @@ function setAct(n){
   servedN=0; diner=null; doorT=0; rank=0; chosen=[]; dealt=[]; applyMods();
   dexSeen={}; dexCooked={}; dexNew=0; dexToast=null;
 }
-const actBtns=[...document.querySelectorAll('.acts button')];
-function paintActBtns(){
-  for(const b of actBtns) b.setAttribute('aria-pressed',String(+b.dataset.act===act));
-}
-for(const b of actBtns) b.onclick=()=>{ goAct(+b.dataset.act); paintActBtns(); };
 
 /* ═════════════════════════════════════════════════════════════
    WHO GETS THE DEV TOOLS.  Opt-IN, and off by default, so shipping is the
@@ -5909,7 +6176,7 @@ if(DEV) window.__soup={
     held=[]; dragging=false; ptr.down=false; ptr.mode=null;
     document.body.classList.remove('drag');
     setAct(1);                         // levels, broth, flavour, rank, cards, dex
-    goAct(1); paintActBtns();
+    goAct(1);
     earnEMA=0; earnWin=0; earnT=0; combo=0; comboT=0; dive=null; popRate=0;
     floats=[]; shouts=[]; coins=[]; waves=[]; pops=[]; sparks=[]; puffs=[];
     /* AS IF YOU HAD JUST FOUND THE GAME.  it is not a fresh start if the game
@@ -5960,6 +6227,23 @@ if(DEV) window.__soup={
      for measuring whether an escapee ever makes it back. */
   potCount(){ return items.filter(o=>o.st==='float'||o.st==='sunk').length; },
   damaged(){ return items.filter(o=>o.st==='loose'&&o.done>0.02).length; },
+  /* SET THE CURRENT, either way round, and read what the pot made of it. Both
+     directions are supposed to be worth exactly the same — `--swirl` runs one
+     pot twice, mirrored, and compares. A claim about symmetry that nothing
+     measures is a claim that quietly stops being true. */
+  stir(v){ swirl=clamp(v===undefined?0.6:v,-1,1); return swirl; },
+  get swirl(){ return swirl; },
+  /* CLEAR THE KITCHEN AND RESTOCK IT. `reset()` only puts the upgrade tree
+     back — `items` survives it — so two measurements taken back to back start
+     from different pots, and anything that compares them is comparing the
+     leftovers. reseed() already does the right thing for a new act; this is the
+     same call, exposed, so a test can ask for the same kitchen twice. */
+  restock(n){ reseed(n===undefined?16:n); return items.length; },
+  potWork(){ let done=0, depth=0, n=0;
+    for(const it of items) if(it.st==='float'||it.st==='sunk'){
+      done+=it.done; depth+=it.depth; n++; }
+    return {n, done:+done.toFixed(6), depth:+depth.toFixed(6),
+            swirl:+swirl.toFixed(6)}; },
   /* how cooked is the pot, really. if the most-done thing in there is sitting
      near zero then every entry is a wasted trip and the loop is not turning. */
   /* where the loose crowd is standing, relative to the two things that decide
@@ -6060,8 +6344,13 @@ const DBG=[
    d:'Draws one at random from the cards you have not been dealt.'},
 
   {g:'Time and place'},
-  {n:'Next act', f:()=>{ goAct(act>=5?1:act+1); paintActBtns(); }, val:()=>'act '+act+' · '+A.n,
-   d:'Scenery, palette and ingredient pool. Keeps all progress. The I–V buttons bottom-right do the same.'},
+  {n:'Next act', f:()=>{ goAct(act>=5?1:act+1); }, val:()=>'act '+act+' · '+A.n,
+   d:'Scenery, palette and ingredient pool. Keeps all progress. This is where the '+
+     'I–V strip went: acts are what the run is counting, so a button that hands '+
+     'you one does not belong in the game proper.'},
+  {n:'Previous act', f:()=>{ goAct(act<=1?5:act-1); }, val:()=>'act '+act+' · '+A.n,
+   d:'The same, backwards, because walking the acts to look at something is the '+
+     'reason this exists and the strip could go both ways.'},
   {k:'F', n:'Fire', f:()=>{ fire=fire<0.55?0.95:0.25;
       devNote='FIRE '+Math.round(fire*100)+'%'; devNoteT=1; },
    val:()=>Math.round(fire*100)+'%',
@@ -6513,7 +6802,7 @@ const BOOK=[
   { art:'swirl', cap:'fig. ii · the current, and a passenger',
     kick:'Chapter two', title:'On Stirring', body:[
     '<em>Nothing cooks that is not under.</em>',
-    'Stir in circles and the broth takes hold and draws things down. Stir the other way and you will undo your own work, as in most things.',
+    'Stir in circles and the broth takes hold and draws things down. Either way round will do it — the pot has no opinion about your handedness. Only about whether you have stopped.',
     'What floats will, given time, climb out — and it will take with it every bit of cooking you had already paid for. Do not take this personally. Everything here would rather be elsewhere.',
     'When the broth climbs to the lip, the pot gives up its heat all at once. Whatever is under at that moment is what you are paid for. Whatever is not, is not.',
   ]},
