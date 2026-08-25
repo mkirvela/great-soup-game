@@ -379,6 +379,34 @@
   .rcard .foot{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;
     text-transform:uppercase;color:#8A6A38;margin:18px 0 0}
 
+  /* ---------- start over: a hard reset, its own grim little dialog ---------- */
+  #restart{position:fixed;inset:0;z-index:41;display:none;
+    align-items:center;justify-content:center;padding:26px;
+    background:rgba(8,4,10,.88);pointer-events:auto}
+  #restart.on{display:flex}
+  .rmodal{width:min(560px,100%);border:4px solid var(--ink);
+    background:linear-gradient(#241528,#150B19);
+    box-shadow:0 26px 60px rgba(0,0,0,.66);padding:28px 30px 26px}
+  .rmodal .kick{font-family:var(--f-mono);font-size:10px;letter-spacing:.26em;
+    text-transform:uppercase;color:var(--gold);margin:0 0 12px}
+  .rmodal h3{font-family:var(--f-disp);text-transform:uppercase;
+    font-size:clamp(22px,3.4vw,30px);letter-spacing:.02em;line-height:1.05;
+    margin:0 0 14px;color:var(--cream)}
+  .rmodal .rbody{font-family:Charter,"Iowan Old Style",Palatino,Georgia,serif;
+    font-size:16px;line-height:1.5;color:var(--ash);margin:0 0 12px}
+  .rmodal .rsmall{font-style:italic;color:#9A7F92;margin-bottom:22px}
+  .rbtns{display:flex;gap:12px;flex-wrap:wrap}
+  .rbtns button{flex:1;min-width:170px;font-family:var(--f-disp);
+    text-transform:uppercase;font-size:16px;letter-spacing:.03em;
+    padding:13px 16px 11px;border:3px solid var(--ink);cursor:pointer;
+    box-shadow:3px 3px 0 var(--ink);transition:transform .08s,box-shadow .08s,background .12s}
+  .rbtns button:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  .rghost{background:#2E1B2C;color:var(--cream)}
+  .rghost:hover{background:#3C2438;transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+  .rwipe{background:#6B2118;color:#FFE7AE}
+  .rwipe:hover{background:#8A2A1E;transform:translate(-1px,-1px);box-shadow:4px 4px 0 var(--ink)}
+  .rbtns button:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+
   .acts{display:flex;gap:6px}
   .acts button{font-family:var(--f-disp);text-transform:uppercase;font-size:19px;
     letter-spacing:.05em;padding:10px 15px 8px;border:3px solid var(--ink);
@@ -582,6 +610,7 @@
   <button id="codexbtn"><b>Ingredients</b><span id="mc"></span>
     <em id="dexbadge" hidden>0</em></button>
   <button id="bookbtn"><b>Cookbook</b><span id="mb"></span></button>
+  <button id="restartbtn"><b>Start Over</b><span>tip the pot out and begin again</span></button>
   <button id="dbgbtn"><b>Debug</b><span>dev tools · ` or ?</span></button>
 </div>
 
@@ -633,6 +662,19 @@
       <button class="pick" id="cb"><b></b><span></span></button>
     </div>
     <p class="foot">Permanent. There is no going back, and no reset to go back to.</p>
+  </div>
+</div>
+
+<div id="restart" aria-hidden="true">
+  <div class="rmodal" role="alertdialog" aria-label="Start over">
+    <p class="kick">The pot, poured out</p>
+    <h3>Tip the whole thing out?</h3>
+    <p class="rbody">Every ladle you sharpened, every mouth you fed, every creature you ever wrote up — down the drain and forgotten. The fire goes cold. The broth goes grey. The pot, which has simmered since before there was a floor to stand on, forgets your name entirely.</p>
+    <p class="rbody rsmall">There is no getting it back. That is rather the point of it.</p>
+    <div class="rbtns">
+      <button id="restartno" class="rghost">No — keep cooking</button>
+      <button id="restartyes" class="rwipe">Yes — pour it all out</button>
+    </div>
   </div>
 </div>
 
@@ -5911,7 +5953,7 @@ function frame(now){
     /* the pot waits while you read — and while you are turning the phone over.
        Without `tilted` the door keeps filling and a seated diner keeps losing
        patience behind an overlay the player cannot act through. */
-    if(bookOpen||cardOpen||tilted){ last=now; acc=0; }
+    if(bookOpen||cardOpen||tilted||restartOpen){ last=now; acc=0; }
     acc+=Math.min(.25,(now-last)/1000); last=now;
     while(acc>=STEP){ lastU=step(STEP); acc-=STEP; }
     draw(lastU);
@@ -6252,27 +6294,11 @@ if(DEV) window.__soup={
      previous session put them, and the ladle. Doing it without a reload matters
      because a reload would just load the save back. */
   freshStart(){
-    preMax=null;                       // no stale snapshot to "restore" into
-    held=[]; dragging=false; ptr.down=false; ptr.mode=null;
-    document.body.classList.remove('drag');
-    setAct(1);                         // levels, broth, flavour, rank, cards, dex
-    goAct(1);
-    earnEMA=0; earnWin=0; earnT=0; combo=0; comboT=0; dive=null; popRate=0;
-    floats=[]; shouts=[]; coins=[]; waves=[]; pops=[]; sparks=[]; puffs=[];
-    /* AS IF YOU HAD JUST FOUND THE GAME.  it is not a fresh start if the game
-       still remembers that you have read the book — every first-run thing has to
-       be re-armed, or "fresh" quietly means "fresh except the parts that only
-       ever happen once", which are exactly the parts worth looking at again. */
-    bookSeen=false; bookPage=0; bookPages=null;
-    dexNew=0; dexToast=null;
-    throwNote=0; scaldNote=0; crowdNote=0; devNoteT=0;
-    paintDexBadge(); paintTree(); drawEdges();
-    try{ localStorage.removeItem('greatsoup.v1'); }catch(e){}
-    setTree(false); setCodex(false); setGuests(false); setDbg(false); setMenu(false);
-    setBook(true,0);                   // and the cookbook opens, as it would
-    /* the dev toggles are deliberately NOT reset. They are experiments you are
-       in the middle of — silently flipping the throw model back mid-comparison
-       would be worse than leaving it — so they are reported instead. */
+    /* the player-facing Start Over engine does the whole reset now (levels, broth,
+       cards, dex, save, overlays, first-run re-arm). The dev toggles are
+       deliberately NOT reset — they are experiments you may be mid-comparison on —
+       so they are reported here instead of silently flipped. */
+    newGame();
     devNote='FRESH START · '+(CROWD?'crowd alive':'old crowd')+' · '
             +THROW_NAMES[THROW]+' · '+(TINT>=1?'tint full':TINT>0?'tint hint':'tint off');
     devNoteT=1;
@@ -6581,6 +6607,47 @@ for(const id of ['guestbtn','codexbtn','bookbtn']){
   const el=document.getElementById(id);
   if(el) el.addEventListener('click',()=>setMenu(false));
 }
+
+/* ═════════════════════════════════════════════════════════════
+   START OVER.  A hard reset the player can actually reach, from the menu —
+   wiping EVERYTHING (levels, broth, the codex, the run, the lot) and beginning a
+   brand new game without a reload. `newGame()` is the shared engine; the dev
+   tool's freshStart() wraps it with a note. Guarded behind a modal because it is
+   the one irreversible button in the game — the recipe cards only ever said there
+   was "no reset to go back to"; this is that reset, so it asks first.
+   ═════════════════════════════════════════════════════════════ */
+let restartOpen=false;
+function newGame(){
+  preMax=null;                       // no stale dev snapshot to "restore" into
+  held=[]; dragging=false; ptr.down=false; ptr.mode=null;
+  document.body.classList.remove('drag');
+  runOver=false; ending=null; endT=0; endBroth=0; backs=0; afterBook=null;  // clear any ended run
+  setAct(1); goAct(1);               // levels, broth, flavour, rank, cards, dex
+  earnEMA=0; earnWin=0; earnT=0; combo=0; comboT=0; dive=null; popRate=0;
+  floats=[]; shouts=[]; coins=[]; waves=[]; pops=[]; sparks=[]; puffs=[];
+  /* re-arm the first-run things, or "new game" quietly means "new except the
+     parts that only ever happen once" — exactly the parts worth seeing again. */
+  bookSeen=false; bookPage=0; bookPages=null;
+  dexNew=0; dexToast=null;
+  throwNote=0; scaldNote=0; crowdNote=0; devNoteT=0;
+  paintDexBadge(); paintTree(); drawEdges();
+  try{ localStorage.removeItem('greatsoup.v1'); }catch(e){}
+  setTree(false); setCodex(false); setGuests(false); setDbg(false); setMenu(false); setRestart(false);
+  setBook(true,0);                   // and the cookbook opens, as it would on a first run
+}
+function setRestart(v){
+  restartOpen=v;
+  const el=document.getElementById('restart');
+  el.classList.toggle('on',v);
+  el.setAttribute('aria-hidden',String(!v));
+  if(v&&dragging){ dragging=false; ptr.down=false; ptr.mode=null;
+    for(const it of held) it.st='loose'; held=[];
+    document.body.classList.remove('drag'); }
+}
+document.getElementById('restartbtn').onclick=()=>{ setMenu(false); setRestart(true); };
+document.getElementById('restartno').onclick=()=>setRestart(false);
+document.getElementById('restartyes').onclick=()=>{ setRestart(false); newGame(); };
+addEventListener('keydown',e=>{ if(restartOpen&&e.key==='Escape') setRestart(false); });
 
 /* ═════════════════════════════════════════════════════════════
    THE COOKBOOK.  narrative and tutorial in the same breath — the rules
