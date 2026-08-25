@@ -110,6 +110,20 @@
     background:var(--ink);color:var(--gold);padding:3px 7px;border-radius:9px}
   #openup b[hidden]{display:none}
   #openup:focus-visible{outline:3px solid var(--cream);outline-offset:3px}
+  /* CALL TO ACTION.  when there is something you can afford, the button does not
+     just wear its badge — it wobbles, briefly, every couple of seconds, to catch
+     the eye and then leave it alone. The wobble animates the INDIVIDUAL `rotate`
+     property, not `transform`, so it composes with (rather than clobbers) the
+     translate on :hover/:active — the press still presses. It settles the moment
+     you reach for it, and honours reduced-motion. */
+  @keyframes upwobble{
+    0%,62%,100%{rotate:0deg}
+    67%{rotate:-6deg} 71%{rotate:5deg} 75%{rotate:-4deg}
+    79%{rotate:3deg} 83%{rotate:-2deg} 87%{rotate:1deg}
+  }
+  #openup.ready{animation:upwobble 2.4s ease-in-out infinite}
+  #openup.ready:hover{animation-play-state:paused}
+  @media (prefers-reduced-motion:reduce){ #openup.ready{animation:none} }
 
   /* ---------- tech tree: a proper modal ---------- */
   #tree{position:fixed;inset:0;z-index:20;background:rgba(8,4,10,.82);
@@ -128,13 +142,13 @@
     text-shadow:3px 3px 0 var(--ink)}
   .thead .coin{margin-left:auto}
   .thead .coin b{font-size:28px}
-  #closeup,#cxclose,#gclose,#dbgclose{font-family:var(--f-disp);text-transform:uppercase;font-size:20px;
+  #closeup,#cxclose,#gclose,#dbgclose,#achclose{font-family:var(--f-disp);text-transform:uppercase;font-size:20px;
     letter-spacing:.05em;padding:10px 18px 8px;border:3px solid var(--ink);
     background:#3C2438;color:var(--cream);cursor:pointer;
     box-shadow:3px 3px 0 var(--ink)}
-  #closeup:hover,#cxclose:hover,#gclose:hover,#dbgclose:hover{background:#4E2F48;transform:translate(-1px,-1px);
+  #closeup:hover,#cxclose:hover,#gclose:hover,#dbgclose:hover,#achclose:hover{background:#4E2F48;transform:translate(-1px,-1px);
     box-shadow:4px 4px 0 var(--ink)}
-  #closeup:active,#cxclose:active,#gclose:active,#dbgclose:active{transform:translate(2px,2px);
+  #closeup:active,#cxclose:active,#gclose:active,#dbgclose:active,#achclose:active{transform:translate(2px,2px);
     box-shadow:1px 1px 0 var(--ink)}
   #tscroll{flex:1;overflow:auto;position:relative;
     background:
@@ -300,6 +314,11 @@
     font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;
     text-transform:uppercase;padding:3px 7px 2px;border-radius:3px;
     background:rgba(0,0,0,.62);color:#D9C6D2}
+  /* THE FLAVOUR TINT.  the portrait sits in a wash of its taste's colour — the
+     same glow the broth throws in game — and the `taste` value is written in that
+     same colour, so the codex is where "SWEET / BITTER / UMAMI" and their pinks,
+     purples and greens connect. The wash is set inline per ingredient. */
+  .ing .st span b.fl{font-weight:700}
   .ing .ib{padding:12px 14px 14px;display:flex;flex-direction:column;gap:9px}
   .ing .ib b.nm{font-family:var(--f-disp);text-transform:uppercase;font-size:26px;
     letter-spacing:.03em;color:var(--cream);line-height:1;display:block}
@@ -361,10 +380,6 @@
     background:rgba(0,0,0,.34);color:#8ED96A}
   .gst .tg em.hard{color:#FF8FA0}
   .gst > *{pointer-events:none}
-  #codexbtn b{font-family:var(--f-mono);font-size:12px;font-weight:700;
-    background:var(--ink);color:#8FB86A;padding:3px 7px;border-radius:9px;
-    margin-left:8px}
-  #codexbtn b[hidden]{display:none}
 
   /* ---------- the recipe card ---------- */
   #card{position:fixed;inset:0;z-index:40;display:none;
@@ -558,6 +573,85 @@
      child's `auto` beats the parent's `none`, so disabling only #hudbar would
      have left all four buttons clickable through a drag. */
   body.drag #hudbar > *{pointer-events:none}
+  /* ---------- chef exp bar ---------- */
+  .chef{margin-top:10px;max-width:172px}
+  .chbar{height:7px;background:#2A1A2A;border:2px solid var(--ink);margin-top:4px}
+  .chbar i{display:block;height:100%;width:0;
+    background:linear-gradient(90deg,#7A3FA0,#E6A8FF);transition:width .35s ease}
+
+  /* ---------- achievements ---------- */
+  :root{
+    --bronze:#C6813E; --bronze-d:#7A4A1E; --silver:#CDD2DB; --silver-d:#7E858F;
+    --tgold:#F3C64C; --tgold-d:#A9781F; --plat:#8FE0FF; --plat-d:#2E6EA8;
+    --eternal:#E6A8FF; --eternal-d:#7A3FA0;
+  }
+  #ach{position:fixed;inset:0;z-index:22;display:none;align-items:center;
+    justify-content:center;padding:26px;background:rgba(8,4,10,.86);pointer-events:auto}
+  #ach.on{display:flex}
+  #ach .cmodal{display:flex;flex-direction:column;width:min(1240px,100%);
+    height:min(880px,100%);background:#1A0F1B;border:5px solid var(--ink);
+    box-shadow:0 30px 70px rgba(0,0,0,.7)}
+  #ach .thead{display:flex;align-items:center;gap:16px}
+  #ach .thead h2{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.06em;
+    font-size:28px;color:var(--cream);margin:0}
+  #achcount{font-family:var(--f-mono);font-size:13px;color:var(--umami);
+    font-variant-numeric:tabular-nums}
+  .aprog{flex:1;height:8px;background:#2A1A2A;border:2px solid var(--ink);max-width:280px;margin-left:auto}
+  .aprog i{display:block;height:100%;background:linear-gradient(90deg,var(--bronze),var(--tgold))}
+  #achscroll{flex:1;overflow-y:auto;padding:6px 18px 26px;background:#150C17}
+  #achscroll .dgroup{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.08em;
+    font-size:16px;color:#C9A24A;margin:22px 0 12px;padding-bottom:6px;
+    border-bottom:2px solid #3A2A38;display:flex;align-items:baseline;gap:10px}
+  #achscroll .dgroup .n{font-family:var(--f-mono);font-size:11px;color:var(--ash-dim);margin-left:auto}
+  .agrid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(310px,1fr))}
+  .ach{display:flex;gap:14px;align-items:center;border:4px solid var(--ink);
+    background:#251629;box-shadow:4px 4px 0 var(--ink);padding:12px 14px}
+  .ach.locked{background:#1C1220;box-shadow:3px 3px 0 var(--ink)}
+  .ach .body{min-width:0;flex:1}
+  .ach .nm{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.02em;
+    font-size:20px;line-height:1;color:var(--cream)}
+  .ach.locked .nm{color:#7E6C86}
+  .ach .bl{font-family:var(--f-ui);font-size:12.5px;line-height:1.4;color:var(--ash);margin-top:5px}
+  .ach.locked .bl{color:#6E5F78}
+  .ach .foot{font-family:var(--f-mono);font-size:10px;letter-spacing:.04em;color:var(--umami);
+    margin-top:7px;text-transform:uppercase}
+  .ach .pbar{height:7px;background:#2A1A2A;border:2px solid var(--ink);margin-top:8px}
+  .ach .pbar i{display:block;height:100%;background:linear-gradient(90deg,#8A5320,var(--bronze))}
+  .ach .pnum{font-family:var(--f-mono);font-size:10px;color:var(--ash-dim);margin-top:4px;text-align:right}
+  .medal{width:70px;height:70px;flex:0 0 auto;border-radius:50%;position:relative;
+    border:3px solid var(--ink);box-shadow:inset 0 0 0 3px rgba(0,0,0,.28),0 3px 8px rgba(0,0,0,.5)}
+  .medal .disc{position:absolute;inset:9px;border-radius:50%;
+    background:radial-gradient(circle at 38% 30%,#2A1A30,#140B18);
+    border:2px solid rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center}
+  .medal svg{width:56%;height:56%}
+  .medal .q{font-family:var(--f-disp);font-size:30px;color:#5A4A66}
+  .medal .pips{position:absolute;left:0;right:0;bottom:-3px;display:flex;justify-content:center;gap:3px}
+  .medal .pips b{width:5px;height:5px;border-radius:50%;background:var(--gold);border:1.5px solid var(--ink)}
+  .t-bronze{background:radial-gradient(circle at 36% 28%,#E7A863,var(--bronze) 55%,var(--bronze-d))}
+  .t-silver{background:radial-gradient(circle at 36% 28%,#FFF,var(--silver) 52%,var(--silver-d))}
+  .t-gold{background:radial-gradient(circle at 36% 28%,#FFF0B0,var(--tgold) 52%,var(--tgold-d))}
+  .t-plat{background:radial-gradient(circle at 36% 28%,#E6FAFF,var(--plat) 52%,var(--plat-d))}
+  .t-eternal{background:radial-gradient(circle at 36% 28%,#FFE3FF,var(--eternal) 50%,var(--eternal-d))}
+  .locked .medal{background:radial-gradient(circle at 36% 28%,#3A2E3E,#241A2A 60%,#191220);
+    box-shadow:inset 0 0 0 3px rgba(0,0,0,.4)}
+  .locked .medal .disc{background:#160D1A}
+  .locked .medal svg{opacity:.26;filter:grayscale(1)}
+  .locked .medal .pips b{background:#3A2E3E}
+  .medal.glow{box-shadow:inset 0 0 0 3px rgba(0,0,0,.28),0 0 20px 2px rgba(243,198,76,.32),0 3px 8px rgba(0,0,0,.5)}
+  #achbtn b{color:#E6A8FF}
+  #achtoasts{position:fixed;right:24px;bottom:24px;z-index:60;display:flex;
+    flex-direction:column;gap:10px;pointer-events:none}
+  .atoast{width:330px;display:flex;gap:12px;align-items:center;padding:13px 15px;
+    border:4px solid var(--ink);background:linear-gradient(#2E1B34,#1C1022);
+    box-shadow:0 12px 30px rgba(0,0,0,.6);animation:atoastin 4.8s ease both}
+  .atoast .medal{width:56px;height:56px}
+  .atoast .k{font-family:var(--f-mono);font-size:9px;letter-spacing:.26em;
+    text-transform:uppercase;color:var(--gold)}
+  .atoast .nm{font-family:var(--f-disp);text-transform:uppercase;font-size:21px;
+    line-height:1;color:var(--cream);margin:3px 0}
+  .atoast .bl{font-family:var(--f-ui);font-size:11.5px;color:var(--ash);line-height:1.35}
+  @keyframes atoastin{0%{transform:translateX(130%)}9%,84%{transform:translateX(0)}100%{transform:translateX(130%);opacity:0}}
+  @media (prefers-reduced-motion:reduce){ .atoast{animation:none} }
 </style>
 </head>
 <body>
@@ -597,6 +691,11 @@
   <div class="bars">
     <div class="row"><span class="lbl">Aroma</span><span id="varo" style="font-family:var(--f-mono);font-size:10px;color:var(--hot)">—</span></div>
   </div>
+  <!-- CHEF EXP: the bar that always climbs, across runs. CHEF.md §1. -->
+  <div class="chef">
+    <div class="row"><span class="lbl">Chef</span><span id="chlv" style="font-family:var(--f-mono);font-size:10px;color:#E6A8FF">Lv 1</span></div>
+    <div class="chbar"><i id="chfill"></i></div>
+  </div>
 </div>
 
 <!-- THE POT, RIGHT NOW, used to live here: three bars and a Cookbook nudge in
@@ -632,6 +731,8 @@
   <button id="codexbtn"><b>Ingredients</b><span id="mc"></span>
     <em id="dexbadge" hidden>0</em></button>
   <button id="bookbtn"><b>Cookbook</b><span id="mb"></span></button>
+  <button id="achbtn"><b>Achievements</b><span id="ma"></span>
+    <em id="achbadge" hidden>0</em></button>
   <button id="restartbtn"><b>Start Over</b><span>tip the pot out and begin again</span></button>
   <button id="dbgbtn"><b>Debug</b><span>dev tools · ` or ?</span></button>
 </div>
@@ -646,6 +747,36 @@
     <div id="dbgscroll"></div>
   </div>
 </div>
+
+<!-- ══ ACHIEVEMENT EMBLEMS ══ one chunky glyph per category; a medal is this inside
+     a tier ring, so ~12 emblems dress 300+ medals. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <g id="e-bowl"><path d="M8 34 L56 34 C54 52 44 58 32 58 C20 58 10 52 8 34Z" fill="#F0A03C" stroke="#1A1116" stroke-width="4" stroke-linejoin="round"/><ellipse cx="32" cy="34" rx="24" ry="7" fill="#FFCB63" stroke="#1A1116" stroke-width="3"/></g>
+  <g id="e-coin"><circle cx="32" cy="32" r="22" fill="#FFD35C" stroke="#1A1116" stroke-width="4"/><circle cx="32" cy="32" r="13" fill="none" stroke="#B8862A" stroke-width="3"/><path d="M32 22 v20 M27 27 h10 M27 37 h10" stroke="#B8862A" stroke-width="3" stroke-linecap="round"/></g>
+  <g id="e-drop"><path d="M32 8 C44 28 50 36 50 44 A18 18 0 0 1 14 44 C14 36 20 28 32 8Z" fill="#8ED96A" stroke="#1A1116" stroke-width="4" stroke-linejoin="round"/></g>
+  <g id="e-ladle"><circle cx="24" cy="44" r="13" fill="#C08A50" stroke="#1A1116" stroke-width="4"/><path d="M33 36 L46 12" stroke="#C08A50" stroke-width="8" stroke-linecap="round"/></g>
+  <g id="e-flame"><path d="M32 6 C40 20 52 24 52 40 A20 20 0 0 1 12 40 C12 30 20 30 24 22 C26 30 30 28 30 20 C30 14 32 10 32 6Z" fill="#FF9A3C" stroke="#1A1116" stroke-width="4" stroke-linejoin="round"/></g>
+  <g id="e-swirl"><path d="M32 12 A20 20 0 1 1 14 30 A12 12 0 1 1 40 32 A5 5 0 1 1 30 32" fill="none" stroke="#8ED96A" stroke-width="5" stroke-linecap="round"/></g>
+  <g id="e-turnip"><path d="M32 22 C46 22 50 40 40 50 C34 56 30 56 24 50 C14 40 18 22 32 22Z" fill="#E7DAC2" stroke="#1A1116" stroke-width="4"/><path d="M28 22 C26 12 22 10 20 6 M36 22 C38 12 42 10 44 6" stroke="#8FB86A" stroke-width="5" fill="none" stroke-linecap="round"/></g>
+  <g id="e-node"><circle cx="32" cy="14" r="7" fill="#FFD35C" stroke="#1A1116" stroke-width="3.5"/><circle cx="16" cy="46" r="7" fill="#C9A24A" stroke="#1A1116" stroke-width="3.5"/><circle cx="48" cy="46" r="7" fill="#C9A24A" stroke="#1A1116" stroke-width="3.5"/><path d="M32 20 L18 40 M32 20 L46 40" stroke="#8A6A38" stroke-width="4"/></g>
+  <g id="e-card"><rect x="16" y="12" width="32" height="40" rx="4" fill="#EFDDB8" stroke="#1A1116" stroke-width="4"/><path d="M32 22 l6 8 -6 8 -6 -8Z" fill="#6B2118"/></g>
+  <g id="e-pot"><path d="M14 26 C12 44 20 54 32 54 C44 54 52 44 50 26Z" fill="#3E4650" stroke="#1A1116" stroke-width="4" stroke-linejoin="round"/><ellipse cx="32" cy="26" rx="20" ry="6" fill="#FFCB63" stroke="#1A1116" stroke-width="3"/></g>
+  <g id="e-star"><path d="M32 6 L39 24 L58 24 L43 36 L48 55 L32 43 L16 55 L21 36 L6 24 L25 24Z" fill="#FFD35C" stroke="#1A1116" stroke-width="4" stroke-linejoin="round"/></g>
+  <g id="e-return"><path d="M40 20 A16 16 0 1 0 48 34" fill="none" stroke="#FF8FA0" stroke-width="5" stroke-linecap="round"/><path d="M40 12 L40 22 L30 22Z" fill="#FF8FA0" stroke="#1A1116" stroke-width="2"/></g>
+</defs></svg>
+
+<div id="ach" aria-hidden="true">
+  <div class="cmodal">
+    <div class="thead" style="padding:16px 20px;background:#150C17;border-bottom:3px solid var(--ink)">
+      <h2>Achievements</h2>
+      <span id="achcount">0 of 0 earned</span>
+      <span class="aprog"><i id="achprog"></i></span>
+      <button id="achclose" style="margin-left:8px">Close · esc</button>
+    </div>
+    <div id="achscroll"></div>
+  </div>
+</div>
+<div id="achtoasts" aria-live="polite"></div>
 
 <div id="codex" aria-hidden="true">
   <div class="cmodal" role="dialog" aria-label="Ingredients">
@@ -2557,10 +2688,12 @@ function palBlown(d){
 }
 /* SEND IT BACK. the bowl empties, the order grows, patience resets. the tip is
    always half the order, so a bigger order pays proportionally more — stalling
-   gains you nothing, it just costs you time. */
+   gains you nothing, it just costs you time. (The once-alive ban no longer routes
+   through here: alive things are uncounted at the spoon, so they never ruin a
+   bowl. See pop().) */
 function sendBack(why){
   const d=diner;
-  d.back++; backs++; d.got=0; d.fg=[0,0,0]; d.kinds={};
+  d.back++; backs++; achSendBack(); d.got=0; d.fg=[0,0,0]; d.kinds={};
   d.need=Math.round(d.need*1.35);
   d.patT=d.pat; d.t=0;
   serveFlash=-1;
@@ -2632,15 +2765,16 @@ function stepDiner(dt){
        whole of it — there is nothing to fill. The ending card IS the payment, and
        it is dealt once, right here, the moment she settles in. */
     if(diner.c.last){ if(!cardOpen&&!runOver) openEndingCard(); return; }
-    if(palBlown(diner)) sendBack(diner.c.ban==='alive'?'THAT WAS ALIVE':'TOO BITTER');
-    else if(orderMet(diner)){
+    /* the once-alive ban is enforced at the spoon now (uncounted in pop()), not by
+       ruining the bowl here — so a waiting diner only ever completes or times out. */
+    if(orderMet(diner)){
       /* ON PRINCIPLE.  the leviathan rejects the first correct bowl for no
          reason at all — a joke boss whose entire job is to defuse the
          send-back by making it obviously survivable. */
       if(diner.c.spite&&!diner.spited){ diner.spited=1; sendBack('ON PRINCIPLE'); return; }
       // the council is nine bowls; the others are one
       if(diner.c.rounds&&!nextRound(diner)) return;
-      diner.st='out'; diner.t=0; servedN++; rank++;
+      diner.st='out'; diner.t=0; servedN++; rank++; achServe(diner.kind);
       const tip=Math.round(diner.need*0.5*MOD.tipMul);
       broth+=tip; serveFlash=1;
       floats.push({x:CTR.x,y:CTR.y-CTR.s*2.2,v:tip,t:0,mult:4,dm:0});
@@ -3048,6 +3182,7 @@ function selfEntry(it){
   /* nobody is pushed. the soup simply smells better than anything they have
      ever smelled, and each of them deals with that in their own way. */
   const k=pick(['trip','trip','swan','cannon','sleep','sprint']);
+  achEntry(k);
   it.st='fly'; it.noAssist=false; it.guided=true;
   it.willing=1;                    // it chose this; it will wait its turn
   if(it.done>0.02) reentries++; else freshEntries++;
@@ -3313,6 +3448,8 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
    ───────────────────────────────────────────────────────────── */
 function step(dt){
   T+=dt;
+  achSecAcc+=dt; if(achSecAcc>=1){ achSecAcc-=1; achSecond(); }   // one tick of play time
+
   LR = R*0.185*ST.ladle;                              // ladle bowl radius
 
   /* ---- the ladle: a damped spring with a speed cap. it is heavy, and it is
@@ -4043,6 +4180,7 @@ function scoreDive(it){
   // 0 and π are both vertical — feet first and head first both count
   const off=Math.min(a,Math.abs(a-Math.PI),TAU-a);
   const clean=clamp(1-off/(Math.PI/2),0,1);
+  achDive(clean>=0.92);
   const exec=clamp(10*(0.28+0.72*clean)+rnd(-0.35,0.35),0,10);
   const diff=1+Math.min(4.2,rots*0.55);
   let mult=clamp((exec/10)*diff,0.50,5.6);
@@ -4081,6 +4219,7 @@ function pop(it){
   const val=Math.max(1,Math.round(
     it.K.rich*it.mulR*(it.mult||1)*MOD.brothUp*rare*sung));
   broth+=val; pending+=val; earnWin+=val;
+  achPop(it.kind,val);                                  // one for the ledger
   markCooked(it.kind);                                  // one for the book
   const fadd=(1+val*0.02)*MOD.flavMul*(it.K.fmul||1);   // garlic reeks
   flav[it.K.fl%3]+=fadd;
@@ -4114,9 +4253,16 @@ function pop(it){
     if(items.length<ST.crowd+8) items.push(spawn());
   }
   if(diner&&diner.st==='wait'){
-    diner.got+=val;                              // parallel meter, not a tax
-    diner.fg[it.K.fl%3]+=fadd;                   // and what it tasted of
-    diner.kinds[it.kind]=(diner.kinds[it.kind]||0)+1;   // and what it WAS
+    /* A DINER WHO FORBIDS THE ONCE-ALIVE simply does not COUNT it. You cannot stop
+       living things leaping into a boiling pot, so ruining the bowl on contact
+       made the Emperor unwinnable; instead an alive thing passes through his bowl
+       uncounted — still broth for you, just not a spoonful he will acknowledge —
+       and only the dead fill his order. */
+    if(!(diner.c.ban==='alive' && wasAlive(it.kind))){
+      diner.got+=val;                              // parallel meter, not a tax
+      diner.fg[it.K.fl%3]+=fadd;                   // and what it tasted of
+      diner.kinds[it.kind]=(diner.kinds[it.kind]||0)+1;   // and what it WAS
+    }
   } else if(!diner){
     /* WORD SPREADS BECAUSE YOU COOKED.  one more thing has dissolved into the
        pot, so one more person has tasted it and told somebody. This is the
@@ -5922,7 +6068,7 @@ function paintTree(){
 }
 function buy(u){
   if(!shown(u)||lv[u.id]>=u.max||broth<cost(u)) return;
-  broth-=cost(u); lv[u.id]++; recalc();
+  broth-=cost(u); lv[u.id]++; recalc(); achUpgrade();
   drawEdges(); paintTree();
 }
 function affordCount(){
@@ -5946,7 +6092,7 @@ openup.onclick=()=>{
 };
 document.getElementById('closeup').onclick=()=>setTree(false);
 addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ setTree(false); setCodex(false); setGuests(false); setDbg(false); setMenu(false); }
+  if(e.key==='Escape'){ setTree(false); setCodex(false); setGuests(false); setDbg(false); setMenu(false); setAch(false); }
 });
 
 let panelT=0;
@@ -5954,6 +6100,9 @@ function tickPanel(){
   if((panelT=(panelT+1)%10)) return;
   const n=affordCount();
   badge.textContent=n; badge.hidden=n===0;
+  openup.classList.toggle('ready', n>0);   // wobble as a call to action
+  sweepAchievements();                     // cheap: skips everything already earned
+  paintChef();
   paintDexBadge();
   if(treeOpen) paintTree();
 }
@@ -5989,6 +6138,7 @@ function frame(now){
    new ingredient tiers arrive through the spawn table as new things spawn. */
 function goAct(n){
   n=clamp(n,1,5);
+  achAct(n);
   if(n===act) return false;                 // tells the caller whether it moved
   act=n; A=ACTS[n]; actT=1;
   document.querySelector('.title span').textContent='act '+n+' · '+A.n;
@@ -6616,6 +6766,8 @@ function paintMenu(){
   if(g) setTxt(g, RUN.slice(0,rank).length+' of '+RUN.length+' served');
   if(c) setTxt(c, dexCount()+' of '+Object.keys(KIND).length+' written up');
   if(b) setTxt(b, 'act '+act+' · '+(A.title||A.n));
+  const a=document.getElementById('ma');
+  if(a) setTxt(a, EARNED.size+' of '+ACH.length+' earned');
 }
 menuBtn.onclick=()=>setMenu(!menuOpen);
 /* click anywhere else and it goes away, which is what a dropdown is expected to
@@ -6625,7 +6777,7 @@ addEventListener('pointerdown',e=>{
   if(menuEl.contains(e.target)||menuBtn.contains(e.target)) return;
   setMenu(false);
 },true);
-for(const id of ['guestbtn','codexbtn','bookbtn']){
+for(const id of ['guestbtn','codexbtn','bookbtn','achbtn']){
   const el=document.getElementById(id);
   if(el) el.addEventListener('click',()=>setMenu(false));
 }
@@ -6643,6 +6795,7 @@ function newGame(){
   preMax=null;                       // no stale dev snapshot to "restore" into
   held=[]; dragging=false; ptr.down=false; ptr.mode=null;
   document.body.classList.remove('drag');
+  achRunReset(); runNo++;            // a fresh run for the ledger; achievements persist
   runOver=false; ending=null; endT=0; endBroth=0; backs=0; afterBook=null;  // clear any ended run
   setAct(1); goAct(1);               // levels, broth, flavour, rank, cards, dex
   earnEMA=0; earnWin=0; earnT=0; combo=0; comboT=0; dive=null; popRate=0;
@@ -6668,7 +6821,7 @@ function setRestart(v){
 }
 document.getElementById('restartbtn').onclick=()=>{ setMenu(false); setRestart(true); };
 document.getElementById('restartno').onclick=()=>setRestart(false);
-document.getElementById('restartyes').onclick=()=>{ setRestart(false); newGame(); };
+document.getElementById('restartyes').onclick=()=>{ setRestart(false); grantManual('start-over'); newGame(); };
 addEventListener('keydown',e=>{ if(restartOpen&&e.key==='Escape') setRestart(false); });
 
 /* ═════════════════════════════════════════════════════════════
@@ -7017,6 +7170,7 @@ function markCooked(k){
   if(dexCooked[k]) return;
   dexCooked[k]=1; dexSeen[k]=1; dexNew++;
   dexToast={k, t:1};
+  addExp(4);                    // a first taste is worth a little chef exp
 }
 const dexCount=()=>Object.keys(dexCooked).length;
 const codexEl=document.getElementById('codex');
@@ -7057,7 +7211,7 @@ function buildCodex(){
           '<span>tough<b>'+K.tough.toFixed(1)+'</b></span>'+
           '<span>pays<b>'+fmt(K.rich)+'</b></span>'+
           '<span>volume<b>'+K.vol.toFixed(2)+'</b></span>'+
-          '<span>taste<b>'+AX[K.fl%3].toLowerCase()+'</b></span>'+
+          '<span>taste<b class="fl" style="color:'+AXC[K.fl%3]+'">'+AX[K.fl%3].toLowerCase()+'</b></span>'+
           '<span>sink<b>'+K.sink.toFixed(2)+'</b></span>'+
           '<span>flee<b>'+K.flee.toFixed(2)+'</b></span>'+
         '</div>'+
@@ -7070,8 +7224,13 @@ function buildCodex(){
       body='<b class="nm">? ? ?</b>'+
         '<div class="nt half">Not yet met.</div>';
     }
+    /* cooked entries get their taste's colour washed under the portrait, low and
+       centred, the way the broth glows in the pot. */
+    const wash=cooked
+      ? ' style="background:radial-gradient(70% 62% at 50% 84%,'+AXC[K.fl%3]+'66,rgba(0,0,0,0) 72%),linear-gradient(180deg,#1D1120,#2E1B30)"'
+      : '';
     el.innerHTML=
-      '<div class="art"><canvas width="600" height="300"></canvas>'+
+      '<div class="art"'+wash+'><canvas width="600" height="300"></canvas>'+
         (cooked?'<span class="tier">tier '+(K.tier||0)+' · '+TIERNAME[K.tier||0]+'</span>':'')+
       '</div><div class="ib">'+body+'</div>';
     /* CLICK TO SUMMON.  the codex is already the complete list of everything in
@@ -7260,6 +7419,8 @@ function setCodex(v){
     dexNew=0; paintDexBadge();
   }
 }
+document.getElementById('achbtn').onclick=()=>setAch(true);
+document.getElementById('achclose').onclick=()=>setAch(false);
 document.getElementById('codexbtn').onclick=()=>setCodex(true);
 document.getElementById('cxclose').onclick=()=>setCodex(false);
 const dexBadge=document.getElementById('dexbadge');
@@ -7299,7 +7460,7 @@ function openCard(){
     const b=document.getElementById(id);
     b.querySelector('b').textContent=o.t;
     b.querySelector('span').textContent=o.d;
-    b.onclick=()=>{ chosen.push(o.k); applyMods(); closeCard(); };
+    b.onclick=()=>{ chosen.push(o.k); applyMods(); achCard(); closeCard(); };
   }
   return true;
 }
@@ -7333,6 +7494,9 @@ function openEndingCard(){
 function endRun(choice){
   closeCard();
   runOver=true; ending=choice; endBroth=broth;
+  achEndRun(choice);
+  if(STATS.run.noSendBack) grantManual('clean-run');  // read before the run resets
+  sweepAchievements();                                // land the finish medals with the epilogue
   if(diner){ diner.st='out'; diner.t=0; }        // she settles back into the pot
   if(choice==='world'){
     /* THE WORLD FOR THE POT.  the fire roars, and the whole room walks in — every
@@ -7386,6 +7550,7 @@ function openEpilogue(){
    carry it across the reset). Phase 2 hangs awardRun() ahead of this. */
 function newRun(){
   runOver=false; ending=null; endT=0; endBroth=0; backs=0; afterBook=null;
+  achRunReset(); runNo++;                 // the next run, for the ledger
   const keepSeen={...dexSeen}, keepCooked={...dexCooked};
   try{ localStorage.removeItem(SAVE); }catch(e){}
   setAct(1);
@@ -7464,6 +7629,282 @@ addEventListener('keydown',e=>{
    counting after an hour, so the ceiling is ~20 minutes of production however
    long you were gone. coming back should be a nice bonus, not a shortcut past
    the game. */
+/* ═════════════════════════════════════════════════════════════
+   ACHIEVEMENTS.  See ACHIEVEMENTS.md. Three structures, one loop: a flat STATS
+   ledger that the simulation only ever increments, an ACH table of pure
+   predicates over it, and a once-a-second sweep that unlocks whatever came true.
+   The ledger lives in its own meta save, which Start Over never clears. The dev
+   tools never feed it (the `preMax` guard, same honesty rule as save()).
+   ═════════════════════════════════════════════════════════════ */
+const AMETA='greatsoup.meta.v1';
+function defaultStats(){ return {
+  life:{ pops:0, brothEarned:0, dinersServed:0, sendBacks:0, dives:0, divesPerfect:0,
+    entriesWilling:0, upgradesBought:0, cardsTaken:0, runsFinished:0,
+    endWorld:0, endPot:0, awayCollected:0, secondsPlayed:0, actReached:1,
+    cooked:{}, served:{}, styles:{} },
+  run:{ serves:0, sendBacks:0, noSendBack:true, brothPeak:0, kinds:{} },
+  best:{ broth:0, singlePop:0, mostServedRun:0, inPotAtOnce:0 },
+}; }
+let STATS=defaultStats();
+const EARNED=new Set();
+let achieved=[];               // [{id, at:runNumber}] — persisted
+let runNo=1, achSecAcc=0;
+/* the ledger writers — every one no-ops in dev-maxed state, so a medal is always
+   something you actually did. */
+function aBump(k,n){ if(preMax) return; STATS.life[k]=(STATS.life[k]||0)+(n==null?1:n); }
+function aBest(k,v){ if(preMax) return; if(v>(STATS.best[k]||0)) STATS.best[k]=v; }
+function aBag(bag,key){ if(preMax||key==null) return; const b=STATS.life[bag]; b[key]=(b[key]||0)+1; }
+/* event hooks, called from the sites listed in ACHIEVEMENTS.md §2 */
+function achPop(kind,val){ if(preMax) return;
+  STATS.life.pops++; STATS.life.brothEarned+=val; aBag('cooked',kind);
+  STATS.run.kinds[kind]=1; if(val>STATS.best.singlePop) STATS.best.singlePop=val; }
+function achServe(kind){ if(preMax) return;
+  STATS.life.dinersServed++; aBag('served',kind);
+  STATS.run.serves++; if(STATS.run.serves>STATS.best.mostServedRun) STATS.best.mostServedRun=STATS.run.serves;
+  addExp(2); }
+function achSendBack(){ if(preMax) return; STATS.life.sendBacks++; STATS.run.sendBacks++; STATS.run.noSendBack=false; }
+function achDive(clean){ if(preMax) return; STATS.life.dives++; if(clean) STATS.life.divesPerfect++; }
+function achEntry(style){ if(preMax) return; STATS.life.entriesWilling++; aBag('styles',style); }
+function achUpgrade(){ aBump('upgradesBought'); }
+function achCard(){ aBump('cardsTaken'); }
+function achAct(n){ if(preMax) return; if(n>STATS.life.actReached){ STATS.life.actReached=n; addExp(6); } }
+function achEndRun(choice){ if(preMax) return;
+  STATS.life.runsFinished++; STATS.life[choice==='world'?'endWorld':'endPot']++;
+  addExp(45); }   // +30 finish, +15 for choosing an ending
+function achAway(g){ aBump('awayCollected',g); }
+function achSecond(){ if(preMax) return;
+  STATS.life.secondsPlayed++;
+  if(broth>STATS.best.broth) STATS.best.broth=broth;
+  if(broth>STATS.run.brothPeak) STATS.run.brothPeak=broth;
+  let n=0; for(const it of items) if(it.st==='float'||it.st==='sunk') n++;
+  if(n>STATS.best.inPotAtOnce) STATS.best.inPotAtOnce=n;
+  /* the steady trickle: the bar always creeps while you cook, faster when the pot
+     is busy, capped per run so a marathon idle cannot dominate the milestones. */
+  const cap=120, e=STATS.run.expTick||0;
+  if(e<cap){ const dn=Math.min(cap-e, popRate>0.01?0.25:0.05); STATS.run.expTick=e+dn; addExp(dn); } }
+function achRunReset(){ STATS.run={ serves:0, sendBacks:0, noSendBack:true, brothPeak:0, kinds:{}, expTick:0 }; }
+
+/* ═════════════════════════════════════════════════════════════
+   CHEF EXP — the bar that always climbs (CHEF.md §1). A second meter, decoupled
+   from broth (which spans six orders of magnitude and would be illegible), fed by
+   the acts you take: a serve, a new act, a first-ever cook, a finish, and a steady
+   trickle while cooking. Never resets; lives in the meta save. Levelling mints a
+   Star, banked for the Legacy tree (still to build).
+   ═════════════════════════════════════════════════════════════ */
+let chefExp=0, chefLevel=1, chefStars=0;   // `stars` is taken — that's the starfield
+function chefInfo(exp){ let lv=1, need=40, used=0;   // exp to leave level `lv` is 40·lv
+  while(exp-used>=need){ used+=need; lv++; need=40*lv; }
+  return { lv, into:exp-used, need }; }
+function addExp(n){ if(preMax||!(n>0)) return;
+  const was=chefInfo(chefExp).lv;
+  chefExp+=n;
+  const now=chefInfo(chefExp).lv;
+  if(now>was){ for(let L=was+1;L<=now;L++){ chefStars++; if(L%5===0) chefStars++; }  // a bonus star every 5th
+    chefLevel=now; chefToast(now); saveMeta(); }
+  paintChef();
+}
+function chefToast(lv){
+  const wrap=document.getElementById('achtoasts'); if(!wrap) return;
+  const el=document.createElement('div'); el.className='atoast';
+  el.innerHTML='<div class="medal t-eternal glow"><div class="disc">'+
+    '<svg viewBox="0 0 64 64"><use href="#e-star"/></svg></div></div>'+
+    '<div><div class="k">Chef Level '+lv+'</div><div class="nm">A Better Cook</div>'+
+    '<div class="bl">+1 star for the reputation.</div></div>';
+  wrap.appendChild(el); el.addEventListener('animationend',()=>el.remove());
+}
+function paintChef(){
+  const i=chefInfo(chefExp);
+  const l=document.getElementById('chlv'); if(l) l.textContent='Lv '+i.lv+(chefStars?'  ·  ★'+chefStars:'');
+  const f=document.getElementById('chfill'); if(f) f.style.width=(i.into/i.need*100).toFixed(1)+'%';
+}
+
+/* ── the catalog. `tiers()` turns one climbing number into a rank of medals. ── */
+const RING=['t-bronze','t-silver','t-gold','t-plat','t-eternal'];
+const ACH=[];
+function push(a){ ACH.push(a); }
+function tiers(idp, cat, metric, ths, names, blurb){
+  ths.forEach((t,i)=>push({ id:idp+'-'+t, cat, tier:Math.min(5,1+Math.floor(i*5/ths.length)),
+    name:names[i], blurb:blurb.replace('%n',fmt(t)), metric, goal:t,
+    check:S=>metric(S)>=t }));
+}
+const A_INGR=Object.keys(KIND);
+const COMMON=['turnip','cabbage','egg','rat','peasant','snail'];
+const DINERS=Object.keys(CAST);
+const DINER_NAME={dog:'A Dog’s Dinner',inspector:'Passed Inspection',widow:'The Widow’s Table',
+  dragon:'Fed the Dragon',council:'Nine Bowls, Nine Opinions',emperor:'By Imperial Appointment',
+  leviathan:'The Leviathan Deigned',pantheon:'The Whole Pantheon',cook:'You Met Him at Last',mother:'Mother, Served'};
+const STYLES=['trip','swan','cannon','sleep','sprint'];
+const STYLE_NAME={trip:'Belly Flop',swan:'The Swan',cannon:'Cannonball',sleep:'The Sleepwalker',sprint:'The Sprint'};
+(function buildCatalog(){
+  tiers('broth','broth',S=>S.life.brothEarned,[100,1e3,1e4,1e5,1e6,1e7,1e8,1e9,1e12],
+    ['First Coin','A Living','Well-To-Do','The Fat of the Land','Broth Baron','Stockholder','Tycoon of Tureens','The Midas Ladle','Broth Without End'],
+    'Earn %n broth, all told.');
+  tiers('brothrun','broth',S=>S.run.brothPeak,[1e3,1e5,1e7,5e8],
+    ['A Good Night','A Good Week','A Fortune in an Evening','The Richest Pot'],'Hold %n broth at once in a single run.');
+  tiers('bigpop','broth',S=>S.best.singlePop,[1e3,1e5,1e6,1e7],
+    ['One Rich Morsel','A Fatted Calf','The Golden Goose','A King in the Pot'],'A single ingredient worth %n broth.');
+  tiers('pops','pops',S=>S.life.pops,[100,1e3,1e4,1e5,1e6,1e7,1e8,1e9],
+    ['One Less Thing','The Reducer','Rolling Along','A Steady Boil','The Great Digestion','Ten Million Souls','Beyond Counting','Everything, Eventually'],
+    'Dissolve %n things into the broth.');
+  tiers('serve','service',S=>S.life.dinersServed,[1,10,50,100,500,1e3,5e3,25e3],
+    ['First Bowl','Line Cook','Short-Order Cook','Short-Order Legend','Ladle of Renown','Feeder of Multitudes','The Cook of Record','Soup Eternal'],
+    'Serve %n bowls, all told.');
+  tiers('back','service',S=>S.life.sendBacks,[1,10,50,200,1e3],
+    ['Not Quite','Try Again','A Difficult Room','The Customer Is Always','You and the Pot Have History'],
+    'Get an order sent back %n times. It happens.');
+  tiers('codex','ingredients',S=>Object.keys(S.life.cooked).length,[6,12,18,24],
+    ['A Start','Half the Larder','Nearly Everything','The Complete Kitchen'],'Cook %n different kinds of thing.');
+  tiers('dive','ladle',S=>S.life.dives,[1,25,100,500,2e3,1e4],
+    ['First Plunge','Getting the Hang','Practised Hand','Diving Instructor','A Thousand Splashes','Master of the Deep'],'Score %n dives.');
+  tiers('perfect','ladle',S=>S.life.divesPerfect,[1,10,100,1e3],
+    ['Clean Entry','Ten Clean','A Hundred Clean','Nothing But Net'],'Score %n perfectly clean dives.');
+  tiers('willing','ladle',S=>S.life.entriesWilling,[10,100,1e3,1e4,1e5],
+    ['They Came','A Small Following','Word Is Spreading','Nobody Pushed Them','An Irresistible Pot'],
+    '%n things walk willingly into the pot.');
+  tiers('build','tree',S=>S.life.upgradesBought,[5,25,100,500,2e3],
+    ['Handy','Well-Equipped','The Renovation','A Kitchen Reborn','Nothing Left to Buy'],'Buy %n upgrades, across all runs.');
+  tiers('card','cards',S=>S.life.cardsTaken,[1,10,50],['First Choice','A Dozen Decisions','Set in Your Ways'],'Take %n recipe cards.');
+  tiers('finish','runs',S=>S.life.runsFinished,[1,5,25,100],['The Last Page','Old Hand','The Long Service','A Life at the Pot'],'Finish %n runs.');
+  tiers('play','time',S=>S.life.secondsPlayed,[600,3600,18e3,864e2],['Ten Minutes','An Hour In','The Long Shift','A Day and a Night'],'Play for %n seconds, all told.');
+  tiers('away','time',S=>S.life.awayCollected,[1e4,1e6,1e8],['The Pot Did Not Stop','It Kept Working','A Fortune, Unattended'],'Collect %n broth from time away.');
+  // reach each act
+  [2,3,4,5].forEach((n,i)=>push({id:'act-'+n,cat:'runs',tier:i+2,
+    name:['The Vat','The Lake','The Caldera','A Pot the Size of a Sun'][i],
+    blurb:'Reach act '+n+'.',check:S=>S.life.actReached>=n}));
+  // taste each ingredient
+  A_INGR.forEach(k=>push({id:'taste-'+k,cat:'ingredients',tier:1,hidden:(KIND[k].tier||0)>=3,
+    name:'First '+((KIND[k].n||k).replace(/^(A|An|The) /,'')),
+    blurb:'Cook a '+(KIND[k].n||k).toLowerCase()+' for the first time.',check:S=>S.life.cooked[k]>0}));
+  // farm the commons
+  COMMON.forEach(k=>push({id:'stock-'+k,cat:'ingredients',tier:2,
+    name:'The '+((KIND[k].n||k).replace(/^(A|An|The) /,''))+' Farmer',
+    blurb:'Cook a thousand '+(KIND[k].n||k).toLowerCase()+'s.',check:S=>(S.life.cooked[k]||0)>=1e3}));
+  // meet each diner
+  DINERS.forEach(k=>push({id:'meet-'+k,cat:'service',tier:2,hidden:(k==='cook'||k==='mother'||k==='pantheon'),
+    name:DINER_NAME[k]||('Served '+(CAST[k].n||k)),
+    blurb:'Complete '+(CAST[k].n||k)+'’s order.',check:S=>(S.life.served[k]||0)>0}));
+  // each entry style
+  STYLES.forEach(k=>push({id:'style-'+k,cat:'ladle',tier:1,
+    name:STYLE_NAME[k],blurb:'Witness the '+STYLE_NAME[k].toLowerCase()+' entry.',check:S=>(S.life.styles[k]||0)>0}));
+  // a scatter of one-offs, mostly hidden
+  push({id:'clean-run',cat:'service',tier:3,name:'A Clean Service',blurb:'Finish a run without a single send-back.',
+    check:S=>false, manual:true});   // set on endRun
+  push({id:'marathon-run',cat:'service',tier:2,name:'A Full Rota',blurb:'Serve fifteen or more diners in one run.',check:S=>S.best.mostServedRun>=15});
+  push({id:'overflow',cat:'pops',tier:3,hidden:true,name:'Overstuffed',blurb:'Hold more in the pot than it was ever meant to.',check:S=>S.best.inPotAtOnce>= (typeof ST!=='undefined'? Math.max(1,ST.pot):999)});
+  push({id:'monoculture',cat:'secret',tier:2,hidden:true,name:'A Pot of Nothing But',blurb:'Finish an act having cooked exactly one kind of thing.',check:S=>false,manual:true});
+  push({id:'end-world',cat:'endings',tier:4,hidden:true,name:'The World, For the Pot',blurb:'You poured everything in.',check:S=>S.life.endWorld>0});
+  push({id:'end-pot',cat:'endings',tier:4,hidden:true,name:'The Pot, For the World',blurb:'You gave everything away.',check:S=>S.life.endPot>0});
+  push({id:'both-ends',cat:'endings',tier:5,hidden:true,name:'You Asked It Both Ways',blurb:'Take both endings, across runs.',check:S=>S.life.endWorld>0&&S.life.endPot>0});
+  push({id:'start-over',cat:'endings',tier:1,hidden:true,name:'You Tipped It All Out',blurb:'Use Start Over.',check:S=>false,manual:true});
+})();
+/* category → emblem, and a title for the gallery sections */
+const CAT_EMBLEM={broth:'coin',pops:'drop',service:'bowl',ladle:'ladle',ingredients:'turnip',
+  fire:'flame',stir:'swirl',tree:'node',cards:'card',runs:'pot',endings:'star',time:'star',secret:'return'};
+const CAT_TITLE={broth:'The Broth',pops:'Dissolving',service:'Service',ladle:'The Ladle',
+  ingredients:'Ingredients',tree:'The Tree',cards:'Recipe Cards',runs:'Acts & Runs',
+  endings:'The Endings',time:'Time & Endurance',secret:'Secrets'};
+const CAT_ORDER=['service','broth','pops','ladle','ingredients','tree','cards','runs','endings','time','secret'];
+
+function unlock(a,silent){
+  if(EARNED.has(a.id)) return;
+  EARNED.add(a.id); achieved.push({id:a.id, at:runNo});
+  if(!silent){ toastAch(a); achNew++; paintAchBadge(); }
+  saveMeta();
+}
+function grantManual(id){ const a=ACH.find(x=>x.id===id); if(a&&!EARNED.has(a.id)) unlock(a); }
+function sweepAchievements(){
+  for(const a of ACH){ if(EARNED.has(a.id)||a.manual) continue;
+    let ok=false; try{ ok=a.check(STATS); }catch(e){}
+    if(ok) unlock(a); }
+}
+/* ── the unlock toast ── */
+function toastAch(a){
+  const wrap=document.getElementById('achtoasts'); if(!wrap) return;
+  const el=document.createElement('div'); el.className='atoast';
+  el.innerHTML='<div class="medal '+RING[(a.tier||1)-1]+' glow"><div class="disc">'+emblemSVG(a)+'</div></div>'+
+    '<div><div class="k">Achievement Unlocked</div><div class="nm"></div><div class="bl"></div></div>';
+  el.querySelector('.nm').textContent=a.name;
+  el.querySelector('.bl').textContent=a.blurb;
+  wrap.appendChild(el);
+  el.addEventListener('animationend',()=>el.remove());
+}
+function emblemSVG(a){
+  if(a.hidden&&!EARNED.has(a.id)) return '<span class="q">?</span>';
+  /* the viewBox is load-bearing: the emblems are drawn in a 64-unit frame, so
+     without it the <use> renders 1:1 into a ~30px disc and you see only the
+     top-left corner (a stray leaf-tip). This maps the whole 64u emblem to fit. */
+  return '<svg viewBox="0 0 64 64"><use href="#e-'+(CAT_EMBLEM[a.cat]||'star')+'"/></svg>';
+}
+/* ── the gallery ── */
+let achOpen=false, achNew=0;
+function setAch(v){
+  achOpen=v; const el=document.getElementById('ach');
+  el.classList.toggle('on',v); el.setAttribute('aria-hidden',String(!v));
+  if(v){ if(dragging){ dragging=false; ptr.down=false; ptr.mode=null;
+      for(const it of held) it.st='loose'; held=[]; document.body.classList.remove('drag'); }
+    buildGallery(); achNew=0; paintAchBadge(); }
+}
+function paintAchBadge(){ const b=document.getElementById('achbadge');
+  if(b){ b.textContent=achNew; b.hidden=achNew===0; } }
+function buildGallery(){
+  const scroll=document.getElementById('achscroll'); if(!scroll) return;
+  scroll.innerHTML='';
+  document.getElementById('achcount').textContent=EARNED.size+' of '+ACH.length+' earned';
+  const pf=document.getElementById('achprog'); if(pf) pf.style.width=(ACH.length?EARNED.size/ACH.length*100:0)+'%';
+  const byCat={}; for(const a of ACH){ (byCat[a.cat]||(byCat[a.cat]=[])).push(a); }
+  for(const cat of CAT_ORDER){
+    const list=byCat[cat]; if(!list) continue;
+    const earned=list.filter(a=>EARNED.has(a.id)).length;
+    const h=document.createElement('div'); h.className='dgroup';
+    h.innerHTML='<span></span><span class="n"></span>';
+    h.firstChild.textContent=CAT_TITLE[cat]||cat;
+    h.querySelector('.n').textContent=earned+' / '+list.length+' earned';
+    scroll.appendChild(h);
+    const g=document.createElement('div'); g.className='agrid';
+    for(const a of list) g.appendChild(tileFor(a));
+    scroll.appendChild(g);
+  }
+}
+function tileFor(a){
+  const got=EARNED.has(a.id), hide=a.hidden&&!got;
+  const el=document.createElement('div');
+  el.className='ach'+(got?'':' locked')+(hide?' hidden':'');
+  const ring=got?RING[(a.tier||1)-1]:'';
+  let inner='<div class="medal '+ring+(got?' glow':'')+'"><div class="disc">'+
+    (hide?'<span class="q">?</span>':emblemSVG(a))+'</div>';
+  if(!hide){ inner+='<div class="pips">'; for(let i=0;i<(a.tier||1);i++) inner+='<b></b>'; inner+='</div>'; }
+  inner+='</div><div class="body"><div class="nm"></div><div class="bl"></div>';
+  // progress for a locked, tiered, visible one
+  if(!got&&!hide&&a.metric&&a.goal){
+    const cur=a.metric(STATS), f=Math.max(0,Math.min(1,cur/a.goal));
+    inner+='<div class="pbar"><i style="width:'+(f*100).toFixed(0)+'%"></i></div>'+
+      '<div class="pnum">'+fmt(Math.floor(cur))+' / '+fmt(a.goal)+'</div>';
+  } else if(got){
+    const rec=achieved.find(x=>x.id===a.id);
+    inner+='<div class="foot">Earned'+(rec?' · run '+rec.at:'')+(a.hidden?' · a secret, revealed':'')+'</div>';
+  }
+  inner+='</div>';
+  el.innerHTML=inner;
+  el.querySelector('.nm').textContent=hide?'— — — — —':a.name;
+  el.querySelector('.bl').textContent=hide?'A secret.':a.blurb;
+  return el;
+}
+/* ── meta save ── */
+function saveMeta(){ if(preMax) return;
+  try{ localStorage.setItem(AMETA,JSON.stringify({ v:1, runNo,
+    stats:STATS, achieved, chefExp, chefLevel, stars:chefStars })); }catch(e){}
+}
+function loadMeta(){
+  let d=null; try{ d=JSON.parse(localStorage.getItem(AMETA)||'null'); }catch(e){}
+  if(!d) return;
+  runNo=d.runNo||1;
+  chefExp=d.chefExp||0; chefLevel=d.chefLevel||1; chefStars=d.stars||0;
+  if(d.stats){ const def=defaultStats();
+    for(const sc of ['life','run','best']) STATS[sc]=Object.assign(def[sc], d.stats[sc]||{}); }
+  if(Array.isArray(d.achieved)){ achieved=d.achieved.filter(r=>r&&r.id);
+    for(const r of achieved) EARNED.add(r.id); }
+}
+
 const SAVE='greatsoup.v1', AWAY_CAP=3600, AWAY_RATE=0.34;
 function save(){
   try{
@@ -7532,7 +7973,7 @@ function loadAndCatchUp(){
   const paid=Math.min(away,AWAY_CAP);
   const gain=Math.floor(earnEMA*paid*AWAY_RATE);
   if(gain<1) return null;
-  broth+=gain;
+  broth+=gain; achAway(gain);
   const capped=away>AWAY_CAP;
   return { art:'pot', cap:'a note, weighed down with a spoon',
     kick:'While you were gone', title:'The Pot Did Not Stop', body:[
@@ -7546,13 +7987,15 @@ function loadAndCatchUp(){
 }
 
 setAct(1);
+loadMeta();                        // the achievement ledger, before the run loads
 const note=loadAndCatchUp();
 if(note) setBook(true,0,[note]);
 else if(!bookSeen) setBook(true,0);
+paintAchBadge(); paintChef();
 
-addEventListener('visibilitychange',()=>{ if(document.hidden) save(); });
-addEventListener('beforeunload',save);
-setInterval(save,10000);
+addEventListener('visibilitychange',()=>{ if(document.hidden){ save(); saveMeta(); } });
+addEventListener('beforeunload',()=>{ save(); saveMeta(); });
+setInterval(()=>{ save(); saveMeta(); },10000);
 
 requestAnimationFrame(frame);
 })();
