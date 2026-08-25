@@ -2346,6 +2346,13 @@ function applyMods(){
    there they get hungrier, about 2.5% a second. Open now against an unprepared
    pot, or stoke the fire and fill the broth first and face a bigger order. */
 let diner=null, servedN=0, serveFlash=0, doorT=0, dingT=0, doorKick=0;
+/* THE RUN CAN END NOW.  once Mother Stock is served the treadmill stops: the door
+   schedules no new knock, the ending card is dealt, and `runOver` gates the room
+   for good until a new run is begun. `backs` is the run-long send-back tally the
+   epilogue reads; `endBroth` is what the pot was worth at the pour; `afterBook`
+   is a one-shot callback run when the book closes (the epilogue uses it to start
+   the next run). See ENDGAME.md §2 and CHEF.md §0. */
+let runOver=false, ending=null, endT=0, endBroth=0, backs=0, afterBook=null;
 /* HOW MANY THINGS HAVE TO DISSOLVE before word gets out, per act. Every pop is
    one more person who has tasted it and told somebody. Aroma is the modifier
    rather than the driver — a pot that smells better spreads the same news
@@ -2489,7 +2496,7 @@ function palBlown(d){
    gains you nothing, it just costs you time. */
 function sendBack(why){
   const d=diner;
-  d.back++; d.got=0; d.fg=[0,0,0]; d.kinds={};
+  d.back++; backs++; d.got=0; d.fg=[0,0,0]; d.kinds={};
   d.need=Math.round(d.need*1.35);
   d.patT=d.pat; d.t=0;
   serveFlash=-1;
@@ -2520,6 +2527,9 @@ function stepDiner(dt){
   if(Math.abs(serveFlash)<0.01) serveFlash=0;
   dingT=Math.max(0,dingT-dt*0.8);
   doorKick=Math.max(0,doorKick-dt*2.4);
+  /* the chosen ending plays for a beat — the crowd going in, or the fire going
+     out — and then the book opens on the last page of the run. */
+  if(runOver&&endT>0){ endT-=dt; if(endT<=0){ endT=0; openEpilogue(); } }
   if(!diner){
     /* WHAT BRINGS SOMEBODY TO THE DOOR.  this used to be pure time — a rate set
        by `allure` back when allure was a smoothed function of TOTAL flavour, and
@@ -2534,6 +2544,8 @@ function stepDiner(dt){
        four minutes at no aroma, seventy seconds at full — slow enough that it
        genuinely is a floor and not a second driver competing with the real one.
        The actual filling comes from pops, in `pop()`. */
+    /* the run is over: the door stays shut, whatever the pot still smells like. */
+    if(runOver) return;
     doorT+=dt*(0.25+allure*0.35)/(60*MOD.doorMul);
     /* newDiner() with NO argument, so it takes the next name off the ROTA.
        this line said newDiner('dog') — a phase-1 leftover from when the dog was
@@ -2552,6 +2564,10 @@ function stepDiner(dt){
   if(diner.st==='knock'&&gw>0) diner.need*=Math.pow(1+gw,dt);
   if(diner.st==='in'  && diner.t>1.1){ diner.st='wait'; diner.t=0; }
   if(diner.st==='wait'){
+    /* MOTHER STOCK DOES NOT TAKE A BOWL.  she is the pot, and her order is the
+       whole of it — there is nothing to fill. The ending card IS the payment, and
+       it is dealt once, right here, the moment she settles in. */
+    if(diner.c.last){ if(!cardOpen&&!runOver) openEndingCard(); return; }
     if(palBlown(diner)) sendBack(diner.c.ban==='alive'?'THAT WAS ALIVE':'TOO BITTER');
     else if(orderMet(diner)){
       /* ON PRINCIPLE.  the leviathan rejects the first correct bowl for no
@@ -2577,7 +2593,7 @@ function stepDiner(dt){
        twenty. four cards a run, drawn from nine, so each one is the choice that
        defines an act rather than a thing that happens constantly. */
     diner=null; doorT=0;
-    if(goAct(actFor(rank))) openCard();
+    if(!runOver && goAct(actFor(rank))) openCard();
   }
 }
 /* THE ORDER TICKET.  `cyp` is the TOP of the card, not the bottom. it used to
@@ -2627,9 +2643,28 @@ function drawOrderCard(cxp,cyp){
 
   if(d.st==='out'){ lab(d.c.gone,'#8ED96A',cx0+pad); return; }
 
+  /* MOTHER STOCK ASKS FOR THE POT.  there is no bowl to fill — her stake is the
+     broth itself, the one order in the game that is read off the score. It gets a
+     different look, and it only ever appears here (ENDGAME.md §2). */
+  if(d.c.last){
+    lab('SHE ASKS FOR','#B69C9E',cx0+pad);
+    ctx.textAlign='right'; lab('all of it',d.st==='knock'?'#FFD35C':'#8ED96A',cx0+cw-pad-4);
+    ctx.textAlign='left'; ry+=fs*1.35;
+    lab('THE POT','#B69C9E',cx0+pad);
+    ctx.textAlign='right'; lab('● '+fmt(broth),'#FFF3DC',cx0+cw-pad-4);
+    ctx.textAlign='left';
+    return;
+  }
+
   // volume
   lab('BOWL','#B69C9E',cx0+pad);
-  const nx0=cx0+pad+fs*3.4, nw=cw-pad*2-fs*3.4;
+  /* the bar starts past the WIDEST row label ("BITTER UNDER"), measured at the row
+     font, so a long label — that one, or "PATIENCE" — never sits on top of its own
+     bar. The old fixed fs*3.4 was sized for "BOWL" and every longer label overran
+     it. Floored at fs*3.4 so a stub measureText (the harness) still lays out. */
+  ctx.font='700 '+fs+'px ui-monospace,Menlo,monospace';
+  const lw=Math.max(fs*3.4, ctx.measureText('BITTER UNDER').width+fs*0.7);
+  const nx0=cx0+pad+lw, nw=cw-pad*2-lw;
   bar(d.got/d.need,'#FFD35C',nx0,nw);
   ctx.textAlign='right';
   lab(fmt(d.got)+' / '+fmt(d.need),'#FFF3DC',cx0+cw-pad-4);
@@ -2699,14 +2734,51 @@ function drawOrderCard(cxp,cyp){
   }
   if(d.back) lab('SENT BACK ×'+d.back+'  ·  order grew','#FF9A6A',cx0+pad);
 }
+/* THE STAR HAS NO WALL to cut a hatch into. In act 5 the last diners — The Cook
+   Who Came Before You, and Mother Stock — arrive through a rift of cold light
+   instead of a wooden hatch: an arch that pulses while somebody waits behind it
+   and pours light when it is opened. Same geometry as HATCH, so onDoor and the
+   diner clip in drawCounter line up unchanged. */
+function drawStarHatch(x,w,h,top,knocking,open){
+  const cyc = knocking ? 0.5+0.5*Math.sin(T*5)
+            : open ? 1 : 0.34+0.12*Math.sin(T*1.4);
+  const cym=top+h*0.5;
+  const hg=ctx.createRadialGradient(x,cym,R*0.04,x,cym,w*0.95);
+  hg.addColorStop(0,'rgba(127,208,255,'+(0.10+cyc*0.24)+')');
+  hg.addColorStop(1,'rgba(127,208,255,0)');
+  ctx.fillStyle=hg; ctx.fillRect(x-w*1.1,top-h*0.5,w*2.2,h*2.0);
+  const arch=()=>{ ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(x-w/2,top,w,h,[w*0.5,w*0.5,w*0.16,w*0.16]);
+    else ctx.rect(x-w/2,top,w,h); };
+  arch(); ctx.fillStyle='#080814'; ctx.fill();
+  arch(); ctx.lineWidth=Math.max(4,R*0.032); ctx.lineJoin='round';
+  ctx.strokeStyle = knocking ? 'rgba(255,224,140,'+(0.55+cyc*0.45)+')'
+                             : 'rgba(190,230,255,'+(0.42+cyc*0.50)+')';
+  ctx.stroke();
+  arch(); ctx.lineWidth=Math.max(1.5,R*0.008);
+  ctx.strokeStyle='rgba(235,248,255,'+(0.28+cyc*0.50)+')'; ctx.stroke();
+  if(open){
+    const g2=ctx.createLinearGradient(0,top,0,top+h*1.2);
+    g2.addColorStop(0,'rgba(230,247,255,0.22)');
+    g2.addColorStop(1,'rgba(127,208,255,0)');
+    ctx.save(); arch(); ctx.clip();
+    ctx.fillStyle=g2; ctx.fillRect(x-w/2,top,w,h*1.2); ctx.restore();
+  }
+  for(let i=0;i<5;i++){                        // motes drifting up through the rift
+    const ph=(T*0.4+i/5)%1, mx=x+Math.sin(i*2.1+T*0.5)*w*0.28, my=top+h*(1-ph);
+    ctx.beginPath(); ctx.arc(mx,my,Math.max(1,R*0.01)*(0.5+ph*0.8),0,TAU);
+    ctx.fillStyle='rgba(230,247,255,'+((1-ph)*0.5*(0.4+cyc))+')'; ctx.fill();
+  }
+}
 function drawDoor(){        /* the serving hatch, cut into the back wall */
-  if(!A.stove) return;
   const knocking = diner && diner.st==='knock';
   const open = diner && diner.st!=='knock';
   const {x,w,h}=HATCH, top=HATCH.bottom-h;
   const shake = knocking ? Math.sin(T*22)*Math.max(0,Math.sin(T*1.6))*3.0 : 0;
   ctx.save(); ctx.translate(shake,0);
 
+  if(!A.stove) drawStarHatch(x,w,h,top,knocking,open);
+  else {
   // the surround, sunk into the wall
   ctx.beginPath();
   ctx.rect(x-w/2-R*0.055,top-R*0.055,w+R*0.11,h+R*0.11);
@@ -2766,16 +2838,17 @@ function drawDoor(){        /* the serving hatch, cut into the back wall */
     ctx.beginPath(); ctx.rect(x-w/2,top,w,h); ctx.clip();
     ctx.fillStyle=g2; ctx.fillRect(x-w/2,top,w,h); ctx.restore();
   }
+  }
   ctx.restore();
 
-  // the ledge, always there
+  // the ledge, always there — wood in a kitchen, pale stone under the star
   ctx.beginPath();
   ctx.rect(CTR.x-CTR.w/2,CTR.y,CTR.w,CTR.h);
-  ctx.fillStyle='#705646'; ctx.fill();
+  ctx.fillStyle=A.stove?'#705646':'#3B4168'; ctx.fill();
   ctx.lineWidth=4; ctx.lineJoin='round'; ctx.strokeStyle=INK; ctx.stroke();
   ctx.beginPath();
   ctx.rect(CTR.x-CTR.w/2,CTR.y+CTR.h,CTR.w*0.96,CTR.h*0.35);
-  ctx.fillStyle='#4A3A33'; ctx.fill(); ctx.stroke();
+  ctx.fillStyle=A.stove?'#4A3A33':'#20233F'; ctx.fill(); ctx.stroke();
 
   // waiting-for-somebody, and the prompt
   const fs=Math.round(Math.max(10,R*0.062));
@@ -2835,8 +2908,7 @@ function drawDoor(){        /* the serving hatch, cut into the back wall */
     }
   }
 }
-function drawCounter(){    /* the guest, framed in the hatch */
-  if(!A.stove) return;
+function drawCounter(){    /* the guest, framed in the hatch (or the star's rift) */
   if(!diner||diner.st==='knock') return;
   const {x,w,h}=HATCH, top=HATCH.bottom-h;
   const e = diner.st==='in'  ? 1-Math.pow(1-Math.min(1,diner.t/1.1),3)
@@ -3092,7 +3164,9 @@ function logLands(fl){
 /* the stoke target is the firebox and the rack — NOT the whole bottom of the
    screen, which is where the crowd stands. */
 function onDoor(x,y){
-  if(!A.stove) return false;
+  /* the hatch is clickable in every act now — act 5 draws it as a rift of light
+     (drawStarHatch) rather than a wooden hatch, but the geometry is the same, so
+     the ending is reachable in a real playthrough and not only via __soup. */
   return Math.abs(x-HATCH.x)<HATCH.w*0.72 &&
          y>HATCH.bottom-HATCH.h-R*0.08 && y<CTR.y+CTR.h*2.2;
 }
@@ -6043,6 +6117,12 @@ if(DEV) window.__soup={
           if(c.req) d.kinds[c.req]=1;
           if(c.ban==='alive') for(const k in d.kinds) if(wasAlive(k)) delete d.kinds[k];
           return 'bowl full, pot untouched'; },
+  /* jump to the last diner, to test the ending without a full run. sets rank to
+     the final slot, walks to act 5, and puts Mother Stock at the door. Open the
+     hatch and she deals the last card. */
+  finish(){ rank=RUN.length-1; servedN=rank; goAct(actFor(rank));
+            runOver=false; diner=null; newDiner('mother');
+            return 'Mother Stock is at the door — open the hatch.'; },
   ruin(){ if(!diner) return 'nobody here';
           const c=diner.c, p=diner.pal||c.pal;
           if(c.pal3!==undefined){ flav=[9,1,1]; return 'balance blown'; }
@@ -6342,6 +6422,10 @@ const DBG=[
   {n:'Deal a recipe card', f:()=>{ window.__soup.card(); }, close:1,
    val:()=>chosen.length+' taken of '+CARDS.length,
    d:'Draws one at random from the cards you have not been dealt.'},
+  {n:'Jump to the ending', f:()=>{ window.__soup.finish();
+      devNote='MOTHER STOCK IS AT THE DOOR'; devNoteT=1; }, close:1,
+   val:()=>runOver?'run over':'rank '+rank+' of '+(RUN.length-1),
+   d:'Skips to the last diner: sets the run to its final slot and puts Mother Stock at the hatch. Open it and she deals the last card — the two endings.'},
 
   {g:'Time and place'},
   {n:'Next act', f:()=>{ goAct(act>=5?1:act+1); }, val:()=>'act '+act+' · '+A.n,
@@ -7135,6 +7219,90 @@ function closeCard(){
   cardEl.setAttribute('aria-hidden','true');
   paintTree();
 }
+/* ═════════════════════════════════════════════════════════════
+   THE ENDING.  Card 10 is not a recipe — it is the last question, and its two
+   answers are the two ways the run can close (ENDGAME.md §2). It reuses the card
+   shell but wires its buttons to endRun() instead of a MOD. Both endings are
+   cheap: they reuse broth, the crowd, the fire and selfEntry().
+   ═════════════════════════════════════════════════════════════ */
+function openEndingCard(){
+  cardOpen=true; cardEl.classList.add('on'); cardEl.setAttribute('aria-hidden','false');
+  document.getElementById('ckick').textContent='The last question';
+  document.getElementById('cq').textContent=
+    '“Is the pot for the world, or is the world for the pot?”';
+  const opts=[
+    ['ca','The world, for the pot','Pour everything in. The room rises and walks in after it. The pot has, at last, what it has always needed.','world'],
+    ['cb','The pot, for the world','Keep it. Ladle it out, bowl after bowl, until the fire has nothing left to do. Nobody dissolves.','pot'],
+  ];
+  for(const [id,t,d,choice] of opts){
+    const b=document.getElementById(id);
+    b.querySelector('b').textContent=t;
+    b.querySelector('span').textContent=d;
+    b.onclick=()=>endRun(choice);
+  }
+}
+function endRun(choice){
+  closeCard();
+  runOver=true; ending=choice; endBroth=broth;
+  if(diner){ diner.st='out'; diner.t=0; }        // she settles back into the pot
+  if(choice==='world'){
+    /* THE WORLD FOR THE POT.  the fire roars, and the whole room walks in — every
+       loose thing, in whatever style it chooses, all at once — and the number you
+       spent the run growing goes in with them. Fill the floor first so it is a
+       crowd and not a handful. */
+    fire=1; let guard=0;
+    while(items.length<ST.crowd&&guard++<400) items.push(spawn());
+    for(const it of items) if(it.st==='loose') selfEntry(it);
+    broth=0; endT=3.4;
+  } else {
+    /* THE POT FOR THE WORLD.  you keep the broth and serve it out; the fire, with
+       nothing left to boil, goes out for the first time in living memory. */
+    fire=0; endT=2.4;
+  }
+  save();
+}
+function openEpilogue(){
+  const cooked=Object.keys(dexCooked).length, kinds=Object.keys(KIND).length;
+  const scene = ending==='world'
+    ? { art:'fire', cap:'the fire · the last time it was fed',
+        kick:'The world, for the pot', title:'You Have Been Very Good To Me', body:[
+        'You tip the ladle, and then the pot, and then everything the pot was ever worth. The fire takes it in one long roar.',
+        'And the room — the dog, the widow, the emperor, every soul who ever stood at your door — rises without a word and walks in after it. Nobody is pushed. It simply smells better than anything they have ever smelled.',
+        'The surface closes over the last of them. <em>You have been very good to me.</em>',
+      ]}
+    : { art:'bowl', cap:'the bowl · the last one poured',
+        kick:'The pot, for the world', title:'That’s The Last Of It', body:[
+        'You do not pour it in. You ladle it out — bowl after bowl after bowl, into every hand in the room, until the hands run out and the bowls keep coming and you are handing soup to the doorway and the dark beyond it.',
+        'The fire, with nothing left to boil, goes quietly out. The pot is empty for the first time in living memory.',
+        'You set the ladle down on the cold rim. <em>That’s the last of it.</em>',
+      ]};
+  const tally = { art:'pot', cap:'the ledger · closed in your own hand',
+    kick:'The run, tallied', title:'What It Came To', body:[
+      'Diners served: <em>'+servedN+'</em>. Sent back, and made good: <em>'+backs+'</em>.',
+      'Ingredients written up: <em>'+cooked+' of '+kinds+'</em>.',
+      'The pot, at the end, was worth <em>'+fmt(endBroth)+'</em> broth — '+
+        (ending==='world'?'and you gave every drop of it to the pot.':'and you gave every drop of it away.'),
+    ]};
+  const her = { art:'pot', cap:'the last diner · she was always here',
+    kick:'The last page', title:'Mother Stock', body:[
+      'She is in none of the earlier pages because you had not met her yet — though she has been in front of you the whole time. She is the pot. She was the first thing simmering, and she is the last thing fed.',
+      'There is no recipe for her in this book. You already know it.',
+      '<em>Turn the page to begin again.</em>',
+    ]};
+  afterBook=newRun;
+  setBook(true,0,[scene,tally,her]);
+}
+/* NEW RUN.  clear the per-run save and reset to act one, but keep the codex — it
+   is a lifetime book (CHEF.md §5 will move it into the meta save; for now we just
+   carry it across the reset). Phase 2 hangs awardRun() ahead of this. */
+function newRun(){
+  runOver=false; ending=null; endT=0; endBroth=0; backs=0; afterBook=null;
+  const keepSeen={...dexSeen}, keepCooked={...dexCooked};
+  try{ localStorage.removeItem(SAVE); }catch(e){}
+  setAct(1);
+  dexSeen=keepSeen; dexCooked=keepCooked;
+  save();
+}
 const bookEl=document.getElementById('book');
 const ROMAN=['i','ii','iii','iv','v','vi','vii','viii'];
 function renderBook(){
@@ -7180,7 +7348,7 @@ function setBook(v,page,pages){
       for(const it of held) it.st='loose'; held=[];
       document.body.classList.remove('drag'); }
     renderBook();
-  } else bookSeen=true;
+  } else { bookSeen=true; if(afterBook){ const f=afterBook; afterBook=null; f(); } }
   bookEl.classList.toggle('on',v);
   bookEl.setAttribute('aria-hidden',String(!v));
 }
@@ -7230,6 +7398,7 @@ function save(){
       servedN: s?s.servedN:servedN,
       act:   s?s.act:act,
       rate:earnEMA, seen:bookSeen, chosen, dealt,
+      over:runOver, ending, endBroth, backs,
       dex:{seen:Object.keys(dexSeen), cooked:Object.keys(dexCooked)} }));
   }catch(e){}
 }
@@ -7263,6 +7432,12 @@ function loadAndCatchUp(){
   }
   goAct(actFor(rank));
   applyMods(); buildTree();
+  backs=d.backs||0;
+  if(d.over){
+    /* the run stands; the epilogue is re-readable, and a new run is explicit. */
+    runOver=true; ending=d.ending||'pot'; endBroth=d.endBroth||0;
+    bookSeen=true; openEpilogue(); return null;
+  }
   const away=Math.max(0,(Date.now()-(d.t||Date.now()))/1000);
   if(away<45||earnEMA<=0) return null;
   const paid=Math.min(away,AWAY_CAP);
