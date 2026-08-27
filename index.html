@@ -48,6 +48,27 @@
   body{background:var(--room);color:var(--ash);font-family:var(--f-ui);
     overflow:hidden;-webkit-font-smoothing:antialiased}
   canvas{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
+  /* ── TOUCH: ONE RULE, TWO BUGS ────────────────────────────────────────────
+     The canvas already said `touch-action:none`, so the pot was never the
+     problem — every DOM control was, because none of them said anything. Two
+     symptoms, one cause:
+
+       · DOUBLE-TAP ZOOMED. Tapping a button twice quickly is the browser's
+         zoom gesture unless the element opts out.
+       · BUTTONS MISFIRED. That same gesture makes the browser hold `click` for
+         ~300ms to see whether a second tap is coming — and the game keeps
+         running in that window. paintTree() and paintLegacy() write
+         `b.disabled` from live broth and stars on every repaint, so a node that
+         was affordable when your finger landed can be disabled by the time the
+         delayed click arrives, and a disabled button eats it. The tap was never
+         lost; it was answered by a different button than the one you pressed.
+
+     `manipulation` keeps panning and pinch-zoom and drops only the double-tap —
+     which removes the delay with it. Pinch is deliberately left alone: killing
+     zoom with `user-scalable=no` would fix the same symptom by taking a browser
+     accessibility feature away from everybody. */
+  button,.node,.pick,input,select,textarea,[role="button"]{
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .hud{position:fixed;pointer-events:none;user-select:none}
 
   #tl{top:0;left:0;padding:20px 24px;display:flex;flex-direction:column;gap:16px}
@@ -126,10 +147,14 @@
   @media (prefers-reduced-motion:reduce){ #openup.ready{animation:none} }
 
   /* ---------- tech tree: a proper modal ---------- */
-  #tree{position:fixed;inset:0;z-index:20;background:rgba(8,4,10,.82);
+  /* the reputation shares the tree's overlay, not just its panel: reusing
+     `.tmodal` alone left #legacy with no positioning at all, so it rendered as a
+     plain block at the end of the document and "opening" it did nothing visible.
+     A headless check cannot see that — the draw calls were all fine. */
+  #tree,#legacy{position:fixed;inset:0;z-index:20;background:rgba(8,4,10,.82);
     display:none;align-items:center;justify-content:center;padding:28px;
     pointer-events:auto}
-  #tree.on{display:flex}
+  #tree.on,#legacy.on{display:flex}
   .tmodal{display:flex;flex-direction:column;
     width:min(1180px,100%);height:min(860px,100%);
     background:#1A0F1B;border:5px solid var(--ink);
@@ -142,20 +167,113 @@
     text-shadow:3px 3px 0 var(--ink)}
   .thead .coin{margin-left:auto}
   .thead .coin b{font-size:28px}
-  #closeup,#cxclose,#gclose,#dbgclose,#achclose{font-family:var(--f-disp);text-transform:uppercase;font-size:20px;
+  #closeup,#cxclose,#gclose,#dbgclose,#achclose,#closeleg{font-family:var(--f-disp);text-transform:uppercase;font-size:20px;
     letter-spacing:.05em;padding:10px 18px 8px;border:3px solid var(--ink);
     background:#3C2438;color:var(--cream);cursor:pointer;
     box-shadow:3px 3px 0 var(--ink)}
-  #closeup:hover,#cxclose:hover,#gclose:hover,#dbgclose:hover,#achclose:hover{background:#4E2F48;transform:translate(-1px,-1px);
+  #closeup:hover,#cxclose:hover,#gclose:hover,#dbgclose:hover,#achclose:hover,#closeleg:hover{background:#4E2F48;transform:translate(-1px,-1px);
     box-shadow:4px 4px 0 var(--ink)}
-  #closeup:active,#cxclose:active,#gclose:active,#dbgclose:active,#achclose:active{transform:translate(2px,2px);
+  #closeup:active,#cxclose:active,#gclose:active,#dbgclose:active,#achclose:active,#closeleg:active{transform:translate(2px,2px);
     box-shadow:1px 1px 0 var(--ink)}
+
+  /* ── THE PANEL HEADER ON A SMALL SCREEN ───────────────────────────────────
+     Matias, with two landscape screenshots: *"the topbar takes 40% of screen
+     estate on mobile which is a bit rough."* It does, and the cause is not one
+     number, it is five — every one of them sized for an 1180px desktop panel:
+
+       the overlay's own 26px inset, top and bottom            52px
+       two 5px panel borders                                   10px
+       .thead's 16px padding twice, plus its 5px rule           37px
+       a 34px display title on a ~41px line                     41px
+                                                              ─────
+                                                              140px
+
+     A phone in landscape is about 390px tall, so the chrome alone is over a
+     third of the screen before one ingredient is drawn. And then it gets worse,
+     which is what the screenshots actually show: .thead is a flex LINE, and at
+     390px of width there is no room for a title, two monospace labels and a
+     `Close · esc` button — so the labels wrap to two lines each and the button
+     wraps to two as well. A 78px header becomes a 130px one. That is the 40%.
+
+     Two tiers, in the same idiom `#tl` already uses to shed its own title:
+
+       max-width  560  stop the reflow. A portrait phone has height to spare and
+                       only ever suffered from things wrapping.
+       max-height 560  squeeze the vertical chrome too. Landscape phones, where
+                       height is the scarce axis and 52px of inset is 13% of it.
+
+     `· esc` goes on both: it is a keyboard hint on a device with no keyboard,
+     and it is the longest string in the row. The word goes with it and the
+     button becomes a 40px square — the text stays in the DOM at font-size 0, so
+     the accessible name is still "Close · esc" for anyone listening.
+
+     DESKTOP IS UNTOUCHED. Every declaration below sits behind a query, and the
+     one unconditional line — nowrap on the close buttons — cannot change a
+     button that already fits on one line, which on desktop all six do.
+     ───────────────────────────────────────────────────────────────────── */
+  #closeup,#cxclose,#gclose,#dbgclose,#achclose,#closeleg{white-space:nowrap}
+  @media (max-width:560px),(max-height:560px){
+    /* the hints go first. Both are dev affordances — `click an entry to summon
+       three` already ships `hidden` — and neither survives being wrapped. */
+    #cxhint,#ghint{display:none}
+    /* the counts stay, because "12 of 24" is the only progress the codex shows.
+       They shrink instead of wrapping: a reflowing count is what turned one row
+       into three. */
+    .thead .lbl,#achcount{white-space:nowrap;overflow:hidden;
+      text-overflow:ellipsis;min-width:0;flex:0 1 auto}
+    .thead h2,#ach .thead h2{font-size:20px;letter-spacing:.03em;
+      white-space:nowrap;flex:0 0 auto;text-shadow:2px 2px 0 var(--ink)}
+    /* #achclose carries an inline margin-left, which no stylesheet rule can
+       outrank — so the gap is opened from the count's side instead. Its own
+       right-hand spacer, .aprog, has no room in a 44px row and is gone. */
+    #achcount{margin-right:auto}
+    .aprog{display:none}
+    /* the way out, as a square. A glyph is understood on every phone ever
+       shipped and it is the only thing in the row with a fixed cost. */
+    #closeup,#cxclose,#gclose,#dbgclose,#achclose,#closeleg{
+      font-size:0;padding:0;width:40px;height:40px;flex:0 0 auto;
+      display:flex;align-items:center;justify-content:center;
+      border-width:2px;box-shadow:2px 2px 0 var(--ink)}
+    #closeup::after,#cxclose::after,#gclose::after,#dbgclose::after,
+    #achclose::after,#closeleg::after{
+      content:"\00d7";font-family:var(--f-ui);font-size:27px;font-weight:700;
+      line-height:1;color:var(--cream)}
+  }
+  @media (max-height:560px){
+    /* 52px of inset is 13% of a landscape phone. 16px is still a frame. */
+    #tree,#legacy,#codex,#guests,#ach,#dbg{padding:8px}
+    .tmodal,.cmodal,#ach .cmodal{border-width:3px}
+    .thead,#ach .thead{padding:6px 10px;gap:10px;border-bottom-width:3px}
+    .thead .coin b{font-size:19px}
+    .thead .coin i{width:14px;height:14px;border-width:2px}
+    .thead .coin{gap:6px}
+  }
   #tscroll{flex:1;overflow:auto;position:relative;
     background:
       radial-gradient(120% 80% at 50% 0%,rgba(255,211,92,.05),rgba(0,0,0,0) 60%),
       repeating-linear-gradient(0deg,rgba(255,255,255,.018) 0 1px,rgba(0,0,0,0) 1px 44px),
       repeating-linear-gradient(90deg,rgba(255,255,255,.018) 0 1px,rgba(0,0,0,0) 1px 44px),
       #150C17}
+  /* the reputation's five nodes are a grid, not a graph — there are no
+     prerequisites between them, so the tree's absolute positioning and its edge
+     SVG would both be lying about the shape. Same .node chrome, laid out plainly. */
+  #leginner{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));
+    gap:16px;padding:4px 2px 8px}
+  #leginner .node{position:static;width:auto}
+  /* the cost pill inherits the broth coin from the tree, and stars are not
+     broth — hide the dot so it reads "★ 2" rather than "● ★ 2". */
+  #leginner .nc .dot{display:none}
+  /* the flavour line, under the mechanics rather than instead of them */
+  #leginner .nw{display:block;font-size:11px;line-height:1.45;opacity:.55;
+    font-style:italic;margin-top:5px}
+  /* and the panel should be as tall as five cards, not as tall as the tree's
+     canvas: .tmodal stretches to the viewport for a 21-node graph, which left a
+     screen and a half of empty grid under the reputation. */
+  #legacy .tmodal{height:auto;max-height:100%}
+  #legacy #tscroll{flex:0 1 auto}
+  #legacy .coin i{background:radial-gradient(circle at 34% 30%,#FFF3DC,#FFD35C 60%,#C9922E)}
+  #legwhy{font-size:12.5px;line-height:1.55;color:var(--ash);opacity:.8;
+    margin:2px 0 14px;max-width:64ch}
   #tinner{position:relative}
   #tedges{position:absolute;inset:0;pointer-events:none}
 
@@ -578,6 +696,28 @@
   .chbar{height:7px;background:#2A1A2A;border:2px solid var(--ink);margin-top:4px}
   .chbar i{display:block;height:100%;width:0;
     background:linear-gradient(90deg,#7A3FA0,#E6A8FF);transition:width .35s ease}
+  .chef .row #chlv{font-family:var(--f-mono);font-size:10px;color:#E6A8FF}
+  /* A STAR IS SPENDABLE, so it gets a button and not a caption. It only exists
+     when there is one to spend, which makes its appearance the notification. */
+  #chstars{display:flex;align-items:center;gap:5px;margin-top:7px;
+    pointer-events:auto;cursor:pointer;
+    font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--ink);
+    background:linear-gradient(180deg,#FFE08A,#F3C64C);
+    border:2px solid var(--ink);border-radius:3px;padding:4px 8px;
+    box-shadow:3px 3px 0 var(--ink);animation:starpop 2.4s ease-in-out infinite}
+  /* `hidden` loses to a display rule of higher specificity — the attribute is
+     only `display:none` from the UA sheet, so #chstars{display:flex} un-hid it
+     and it sat there reading "0 to spend". Restore the attribute's power. */
+  #chstars[hidden]{display:none}
+  #chstars b{font-size:13px;font-weight:700}
+  #chstars em{font-style:normal;opacity:.72;font-size:9px}
+  #chstars:hover{background:#FFF3DC;transform:translate(-1px,-1px);
+    box-shadow:4px 4px 0 var(--ink)}
+  #chstars:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
+  @keyframes starpop{0%,88%,100%{transform:none}
+    93%{transform:translateY(-2px) rotate(-1.5deg)}}
+  @media (prefers-reduced-motion:reduce){ #chstars{animation:none} }
 
   /* ---------- achievements ---------- */
   :root{
@@ -591,7 +731,8 @@
   #ach .cmodal{display:flex;flex-direction:column;width:min(1240px,100%);
     height:min(880px,100%);background:#1A0F1B;border:5px solid var(--ink);
     box-shadow:0 30px 70px rgba(0,0,0,.7)}
-  #ach .thead{display:flex;align-items:center;gap:16px}
+  #ach .thead{display:flex;align-items:center;gap:16px;
+    padding:16px 20px;background:#150C17;border-bottom:3px solid var(--ink)}
   #ach .thead h2{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.06em;
     font-size:28px;color:var(--cream);margin:0}
   #achcount{font-family:var(--f-mono);font-size:13px;color:var(--umami);
@@ -693,8 +834,12 @@
   </div>
   <!-- CHEF EXP: the bar that always climbs, across runs. CHEF.md §1. -->
   <div class="chef">
-    <div class="row"><span class="lbl">Chef</span><span id="chlv" style="font-family:var(--f-mono);font-size:10px;color:#E6A8FF">Lv 1</span></div>
+    <div class="row"><span class="lbl">Chef</span><span id="chlv">Lv 1</span></div>
     <div class="chbar"><i id="chfill"></i></div>
+    <!-- the stars sit UNDER the bar rather than inside its label: they are a
+         thing you can spend, not a description of the bar, and they were losing
+         that argument at 10px inside a row of dim mono. -->
+    <button id="chstars" hidden>★ <b>0</b> <em>to spend</em></button>
   </div>
 </div>
 
@@ -733,6 +878,8 @@
   <button id="bookbtn"><b>Cookbook</b><span id="mb"></span></button>
   <button id="achbtn"><b>Achievements</b><span id="ma"></span>
     <em id="achbadge" hidden>0</em></button>
+  <button id="legbtn"><b>The Reputation</b><span id="ml"></span>
+    <em id="legbadge" hidden>0</em></button>
   <button id="restartbtn"><b>Start Over</b><span>tip the pot out and begin again</span></button>
   <button id="dbgbtn"><b>Debug</b><span>dev tools · ` or ?</span></button>
 </div>
@@ -767,7 +914,11 @@
 
 <div id="ach" aria-hidden="true">
   <div class="cmodal">
-    <div class="thead" style="padding:16px 20px;background:#150C17;border-bottom:3px solid var(--ink)">
+    <!-- the padding, background and rule used to live here as an inline style,
+         where NO media query could reach them — so the small-screen squeeze in
+         the stylesheet silently did nothing to this one header. Same values,
+         moved to `#ach .thead`. -->
+    <div class="thead">
       <h2>Achievements</h2>
       <span id="achcount">0 of 0 earned</span>
       <span class="aprog"><i id="achprog"></i></span>
@@ -783,7 +934,7 @@
     <div class="thead">
       <h2>Ingredients</h2>
       <span class="lbl" id="cxcount"></span>
-      <span class="lbl" id="cxhint" style="opacity:.62">click an entry to summon three</span>
+      <span class="lbl" id="cxhint" style="opacity:.62" hidden>click an entry to summon three</span>
       <button id="cxclose" style="margin-left:auto">Close · esc</button>
     </div>
     <div id="cxscroll"></div>
@@ -858,6 +1009,21 @@
   </div>
 </div>
 
+<!-- THE REPUTATION. Reuses the upgrade tree's shell — .tmodal, .thead, .node —
+     so it inherits the modal chrome, the scroll frame and the four node states
+     (locked/afford/poor/maxed) without a line of new CSS. The difference is what
+     it spends: stars, which the run cannot earn and cannot lose. -->
+<div id="legacy" aria-hidden="true">
+  <div class="tmodal" role="dialog" aria-label="The Cook's Reputation">
+    <div class="thead">
+      <h2>The Reputation</h2>
+      <div class="coin"><i></i><b id="stars2">0</b></div>
+      <button id="closeleg">Close · esc</button>
+    </div>
+    <div id="tscroll"><div id="leginner"></div></div>
+  </div>
+</div>
+
 <div id="tree" aria-hidden="true">
   <div class="tmodal" role="dialog" aria-label="Upgrades">
     <div class="thead">
@@ -928,7 +1094,10 @@ const ACTS = {
      flame:['#FFA845','#FFD95C'], stars:70, scale:1.10,
      kinds:['cabbage','beet','garlic','rat','peasant','chicken','snail','mushroom',
             'goose','merchant','knight','knight','bard','taxman','taxman',
-            'saint','saint','ox','ox','wizard','ghost','angel'] },
+            'saint','saint','ox','ox','wizard','ghost','angel',
+            /* the Emperor arrives this act and bans anything that was ever
+               alive; stone is the only thing above tier 1 he can eat (#27) */
+            'millstone','millstone','statue'] },
 
  4:{ n:'the caldera', title:'The Caldera', sub:'a volcano for a burner',
      room:'#2A0F14', room2:'#5A1E1C', floor:'#180809',
@@ -938,7 +1107,8 @@ const ACTS = {
      flame:['#FF7A2A','#FFC24A'], stars:0, scale:1.15,
      kinds:['peasant','chicken','mushroom','goose','merchant','knight','bard',
             'taxman','saint','ox','ox','wizard','wizard','ghost','ghost',
-            'angel','angel','comet','kraken','kraken'] },
+            'angel','angel','comet','kraken','kraken',
+            'millstone','statue','statue'] },
 
  5:{ n:'the star', title:'The Star', sub:'the pot is a sun now',
      room:'#0A0A1E', room2:'#1B1B44', floor:'#06060F',
@@ -1076,9 +1246,19 @@ function mouth(x,y,w,h,kind){
 }
 const blinkOf=seed=>(Math.sin(T*0.9+seed)*0.5+0.5)>0.985?0:1;
 /* colour lerp toward the broth as things cook */
+/* MEMOISED, because this sat in the hottest loop in the renderer. The spark pass
+   called `hex(s.c)` once per spark PER FRAME — three slices, three parseInts and
+   a fresh array — for a colour that never changes after the spark is created.
+   The palette is a couple of dozen strings, so a plain object is the whole fix.
+   NOTE: the returned array is SHARED. Nothing mutates it today (callers index
+   it and throw it away); anything that wants to must copy first. (#25) */
+const HEXC=Object.create(null);
 function hex(h){
-  if(h[0]==='#') return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
-  const m=h.match(/\d+/g); return [+m[0],+m[1],+m[2]];       // also eats rgb(...)
+  const hit=HEXC[h]; if(hit) return hit;
+  const out = h[0]==='#'
+    ? [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]
+    : (m=>[+m[0],+m[1],+m[2]])(h.match(/\d+/g));    // also eats rgb(...)
+  return HEXC[h]=out;
 }
 const rgba=(h,a)=>{ const c=hex(h); return `rgba(${c[0]},${c[1]},${c[2]},${a})`; };
 function mix(a,b,t){ const x=hex(a),y=hex(b);
@@ -1216,6 +1396,64 @@ CHR.city = (s,m)=>{
   eyes(s*0.62, s*0.24, s*0.1, m.mood, m.look);
 };
 
+/* A GRINDING WHEEL, edge-on: a thick disc with a square eye through the middle
+   and the peck-marks of having been dressed by hand. It leans, because nothing
+   that heavy stands square. */
+CHR.millstone = (s,m)=>{
+  ctx.save(); ctx.rotate(-0.08+Math.sin(m.ph*0.5)*0.02);
+  shape(()=>{ ctx.ellipse(0,0,s*0.92,s*0.86,0,0,TAU); }, s, m.c1, m.cl);
+  // the dressing grooves, radiating from the eye
+  ctx.save(); ctx.beginPath(); ctx.ellipse(0,0,s*0.88,s*0.82,0,0,TAU); ctx.clip();
+  for(let i=0;i<8;i++){
+    const a=i/8*TAU+0.2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a)*s*0.26, Math.sin(a)*s*0.24);
+    ctx.lineTo(Math.cos(a+0.5)*s*0.90, Math.sin(a+0.5)*s*0.86);
+    ctx.lineWidth=Math.max(1.4,s*0.055); ctx.strokeStyle=m.c3; ctx.stroke();
+  }
+  ctx.restore();
+  // the eye: square, because a round hole would spin on the spindle
+  shape(()=>{ ctx.rect(-s*0.20,-s*0.19,s*0.40,s*0.38); }, s, m.cl, m.c3);
+  // a chip out of the rim, so it reads as used
+  ctx.beginPath(); ctx.arc(s*0.78,-s*0.30,s*0.13,0,TAU);
+  ctx.fillStyle=m.cl; ctx.fill();
+  ctx.restore();
+  eyes(-s*0.02, s*0.30, s*0.115, m.mood, m.look);
+};
+/* SOMETHING CARVED, on a plinth, with a face it has never used. Deliberately
+   still: no bob of its own, so it reads as the one thing in the room that is not
+   alive — which is the entire reason the Emperor takes it. */
+CHR.statue = (s,m)=>{
+  // plinth
+  shape(()=>{ ctx.moveTo(-s*0.62,s*0.98); ctx.lineTo(-s*0.50,s*0.52);
+              ctx.lineTo(s*0.50,s*0.52); ctx.lineTo(s*0.62,s*0.98);
+              ctx.closePath(); }, s, m.c3, m.cl);
+  // torso, robed, tapering
+  shape(()=>{ ctx.moveTo(-s*0.42,s*0.54);
+    ctx.quadraticCurveTo(-s*0.34,-s*0.30,-s*0.24,-s*0.52);
+    ctx.lineTo(s*0.24,-s*0.52);
+    ctx.quadraticCurveTo(s*0.34,-s*0.30,s*0.42,s*0.54);
+    ctx.closePath(); }, s, m.c1, m.cl);
+  // the folds of the robe
+  for(const dx of [-0.18,0,0.18]){
+    ctx.beginPath();
+    ctx.moveTo(s*dx,-s*0.42); ctx.lineTo(s*(dx*1.5),s*0.48);
+    ctx.lineWidth=Math.max(1.2,s*0.04); ctx.strokeStyle=m.c3; ctx.stroke();
+  }
+  // one arm, raised in whatever gesture it was carved making
+  limb(s*0.30,-s*0.30,s*0.60,-s*0.78,s*0.11,m.c1);
+  // head
+  shape(()=>{ ctx.ellipse(0,-s*0.74,s*0.28,s*0.31,0,0,TAU); }, s, m.c2, m.cl);
+  /* a carved eye does not blink and does not track you: pass a fixed 'shut'
+     mood and no look direction, whatever the rest of the kitchen is doing. */
+  eyes(0,-s*0.74,s*0.105,'shut',0);
+  // and the chisel marks that make it well made rather than merely stone
+  for(const [dx,dy] of [[-0.16,-0.10],[0.20,0.14],[-0.06,0.30]]){
+    ctx.beginPath();
+    ctx.moveTo(s*dx,s*dy); ctx.lineTo(s*(dx+0.09),s*(dy+0.05));
+    ctx.lineWidth=Math.max(1,s*0.03); ctx.strokeStyle=m.c3; ctx.stroke();
+  }
+};
 CHR.comet = (s,m)=>{
   ctx.save(); ctx.globalAlpha=0.85;
   shape(()=>{ ctx.moveTo(-s*0.26,-s*0.34);
@@ -1615,6 +1853,30 @@ const KIND = {
  saint   :{s:32,tough:3.0,rich: 120,fl:1,sink: .05,flee:-.55,seek: .90,c1:'#F7F2E4',c2:'#E8B78E',c3:'#E4DCC4',cl:'#D6CDB6'},
  ox      :{s:41,tough:5.0,rich:  70,fl:2,sink: .95,flee: .18,seek:-.08,c1:'#A9603A',c2:'#EBDFC4',c3:'#F0A8B8',cl:'#7C4326'},
  city    :{s:54,tough:7.0,rich:8000,fl:0,sink: .40,flee: .05,seek: .05,c1:'#9AA6C4',c2:'#FFE07A',c3:'#5C6480',cl:'#5A6180'},
+ /* ── WELL-MADE STONE ──────────────────────────────────────────────────────
+    The Emperor's own line is *"Vegetables. And stone, if it is well made."* and
+    until now the game contained no well-made stone below tier 4 — so the one
+    diner who bans anything that was ever alive was promised masonry and offered
+    a cabbage. Measured (#27): every level of A Reputation shifted the crowd up
+    a ladder whose every rung is alive (saint, ox, wizard, ghost, angel), so it
+    starved him — 60% of arrivals counted at rep 0 and 11% at rep 8, taking his
+    bowl from 47k pops to 172k. Buying the upgrade the game is about made a boss
+    four times harder, invisibly.
+
+    Two stones at tiers 2 and 3 fill that gap, and the trap inverts: his bowl now
+    FALLS from 47k pops to 31.5k as reputation rises. They are also just good
+    ingredients — dense, valuable, and they do not run, so they reward going and
+    fetching rather than waiting.
+
+    Neither moves on its own: flee 0 and seek 0. Everything else in the kitchen
+    walks in because the soup smells better than anything it has ever smelled,
+    and a millstone cannot smell. You have to go and get it. */
+ millstone:{s:38,tough:4.5,rich:  48,fl:1,sink: .92,flee: .00,seek: .00,
+           c1:'#8A8A93',c2:'#B9B9C2',c3:'#6A6A73',cl:'#5E5E66',
+           note:'A grinding wheel. It does not run, it does not sink slowly, and it does not care. Worth going to fetch.'},
+ statue  :{s:40,tough:6.0,rich: 110,fl:1,sink: .85,flee: .00,seek: .00,
+           c1:'#C9C2B0',c2:'#E4DECD',c3:'#9A9384',cl:'#8E877A',
+           note:'It has a face and it never once used it. The Emperor counts it, which tells you something about the Emperor.'},
  comet   :{s:35,tough:3.4,rich:3000,fl:1,sink: .80,flee: .00,seek: .65,c1:'#8E93B4',c2:'#9FD8FF',c3:'#5E77A8',cl:'#5D6285'},
  angel   :{s:37,tough:3.6,rich: 900,fl:0,sink:-.80,flee: .30,seek:-.30,c1:'#EFF4FF',c2:'#E8C79E',c3:'#DDE6F5',cl:'#CBD6EA'},
 
@@ -1673,6 +1935,32 @@ const KIND = {
    STATE
    ───────────────────────────────────────────────────────────── */
 let items=[], sparks=[], coins=[], bubbles=[], pops=[], floats=[], waves=[];
+/* ── STYLE BUCKETS for the two hot particle passes (#25) ────────────────────
+   Reused between frames so a frame allocates nothing, which matters: at a maxed
+   tree these hold five figures of particles and a fresh array per frame would
+   trade a render stall for a GC one.
+
+   SPARKC interns the spark colours as they are first seen — every spark takes
+   its colour from `K.c1` or one fixed gold, so this settles at a couple of dozen
+   entries and never grows again. SPARKB is indexed `colour*SPARKQ + lifeBucket`
+   and grows to match. The coin strings are precomputed for all COINQ buckets
+   because there are only three of them per bucket and they never change. */
+/* The ceilings. A natural maxed act 5 runs ~6 pops/sec with about 56 sparks and
+   16 coins alive, so these are twenty-odd times the working set: they are a
+   backstop for the pathological end, not a quality setting. Dropping a coin is
+   free — the broth was credited in pop() before the coin existed, and `paid`/`v`
+   on a coin are vestigial and read by nothing. See the splices in step(). */
+const FLOAT_MAX=44, SPARK_MAX=1200, COIN_MAX=600, POP_MAX=120, WAVE_MAX=120;
+const SPARKQ=8, COINQ=8;
+const SPARKC=[''], SPARKB=[];
+const COINB=[], COINF=[], COINS_=[], COING=[];
+for(let q=0;q<COINQ;q++){
+  const a=(q+0.5)/COINQ;
+  COINB.push([]);
+  COINF.push('rgba(255,211,92,'+a.toFixed(3)+')');
+  COINS_.push('rgba(26,17,22,'+a.toFixed(3)+')');
+  COING.push('rgba(255,248,220,'+(a*0.9).toFixed(3)+')');
+}
 /* ── SMOKE ──────────────────────────────────────────────────────────────────
    `sparks` are hard little dots — right for embers and splashes, useless for
    steam. Puffs are the soft kind: they grow, rise, thin out and drift. One
@@ -1694,7 +1982,14 @@ let combo=0, comboT=0, purseHit=0, PURSE={x:60,y:150};
 let dive=null, lastDive=-99, synchro=0;   // the diving competition
 let overT=0, lostN=0;                     // boil-over flash + how many went
 let volIn=0, nIn=0, spread=1, lvlRaw=0, risk=0;
+let cookBusy=0;                      // 0..1, how hard the pot is going (#2)
 let earnEMA=0, earnWin=0, earnT=0;   // broth/sec, for time away
+/* AND A SLOW HIGH-WATER MARK. earnEMA decays at 0.82/s, so it is 0.4% of itself
+   after thirty idle seconds — which, once orders are sized from it, would mean
+   "stop cooking for half a minute and the next diner asks for nothing". This
+   floors the rate at 60% of the best you have recently managed, with about a
+   two-minute half-life, so idling costs the game nothing and gains you nothing. */
+let earnPeak=0;
 let allure=0, shouts=[], newT=0;     // the smell, and what they say about it
 /* a decaying count of things dissolved. this is the aroma: a rate, not a total.
    declared up here because the renderer reads it. */
@@ -1720,6 +2015,35 @@ let SCALD_T=0.45, scaldNote=0;
 let LIFT=22;
 let TINT=1;
 let devNote='', devNoteT=0;          // one line of dev feedback, then it fades
+/* ── THE FRAME METER (dev only, P) ────────────────────────────────────────────
+   Matias, after the #25 optimisation: *"no way to measure but (for me) but I
+   guess the perf is better now? feels like it?"* Feels-like is exactly the
+   evidence a placebo produces, and the harness reports OPERATIONS, not
+   milliseconds — so neither of us could answer it. This can.
+
+   It times draw() separately from the whole frame, because draw() is what the
+   optimisation touched: if the batching worked, `draw` falls and `frame` follows
+   it down. If `frame` is high while `draw` is low, the cost is in step() and the
+   pot effects were never the problem.
+
+   MEDIAN AND P95, not a mean. The complaint was a STALL — an occasional long
+   frame — and a mean hides exactly that. p95 is the number to watch. */
+let PERF=0;
+const PF_N=180;                                   // ~3 seconds of history
+const pfDraw=new Float32Array(PF_N), pfFrame=new Float32Array(PF_N);
+let pfI=0, pfFilled=0, pfPrev=0;
+function pfPush(d,f){
+  pfDraw[pfI]=d; pfFrame[pfI]=f;
+  pfI=(pfI+1)%PF_N; if(pfFilled<PF_N) pfFilled++;
+}
+/* a copy, sorted — the ring buffer itself must stay in arrival order */
+const pfScratch=new Float32Array(PF_N);
+function pfStat(buf,q){
+  if(!pfFilled) return 0;
+  pfScratch.set(buf.subarray(0,pfFilled));
+  const v=Array.prototype.slice.call(pfScratch.subarray(0,pfFilled)).sort((a,b)=>a-b);
+  return v[Math.min(v.length-1, Math.floor(v.length*q))];
+}
 /* WHAT THE KITCHEN LOOKED LIKE BEFORE YOU PRESSED M.  declared up here with the
    rest of the sim state because the renderer reads `preMax` to draw the badge,
    and this file has produced three temporal-dead-zone crashes from declaring a
@@ -1772,57 +2096,57 @@ let MOD={...MOD0}, chosen=[], rank=0;
    ═════════════════════════════════════════════════════════════ */
 const UP=[
  // ── HAND ─────────────────────────────────────────────
- {id:'width',   t:'hand', p:null,      col:1,row:0, n:'Ladle Width', base:15, max:9,
+ {id:'width',   t:'hand', p:null,      col:1,row:0, n:'Ladle Width', base:27, max:9,
   d:l=>'bowl '+Math.round((1+l*0.15)*100)+'% · holds '+(1+l+lv.bowl*1)},
- {id:'wrist',   t:'hand', p:'width',   col:2,row:0, n:'Wrist',       base:160, max:8,
+ {id:'wrist',   t:'hand', p:'width',   col:2,row:0, n:'Wrist',       base:288, max:8,
   d:l=>'ladle speed +'+(l*11)+'% · shear +'+(l*12)+'%'},
- {id:'bowl',    t:'hand', p:'width',   col:2,row:1, n:'Deep Bowl',   base:380, max:6,
+ {id:'bowl',    t:'hand', p:'width',   col:2,row:1, n:'Deep Bowl',   base:684, max:6,
   d:l=>'+'+l+' more in the ladle, no bigger'},
- {id:'chop',    t:'hand', p:'wrist',   col:3,row:0, n:'Chopping Edge',base:1400, max:6,
+ {id:'chop',    t:'hand', p:'wrist',   col:3,row:0, n:'Chopping Edge',base:2520, max:6,
   d:l=>'the ladle itself cuts '+(100+l*45)+'%'},
 
  // ── POT ──────────────────────────────────────────────
- {id:'heat',    t:'pot',  p:null,      col:1,row:3, n:'Thin Base',   base:110, max:12,
+ {id:'heat',    t:'pot',  p:null,      col:1,row:3, n:'Thin Base',   base:198, max:12,
   d:l=>'boil clock '+(7*Math.pow(0.94,l)).toFixed(1)+'s at a steady fire'},
- {id:'boilpow', t:'pot',  p:'heat',    col:2,row:2, n:'Boil Power',  base:150, max:14,
+ {id:'boilpow', t:'pot',  p:'heat',    col:2,row:2, n:'Boil Power',  base:270, max:14,
   d:l=>'boil damage +'+(l*22)+'%'},
- {id:'simmer',  t:'pot',  p:'heat',    col:2,row:3, n:'Simmer',      base:180, max:12,
+ {id:'simmer',  t:'pot',  p:'heat',    col:2,row:3, n:'Simmer',      base:324, max:12,
   d:l=>'passive dissolve +'+(l*30)+'%'},
- {id:'depth',   t:'pot',  p:'heat',    col:2,row:4, n:'Depth',       base:300, max:12,
+ {id:'depth',   t:'pot',  p:'heat',    col:2,row:4, n:'Depth',       base:540, max:12,
   d:l=>'a deeper pot: '+(8+l*3)+' volume before it slops over (a turnip is 1)'},
- {id:'lid',     t:'pot',  p:'depth',   col:3,row:4, n:'Lid',         base:1100, max:6,
+ {id:'lid',     t:'pot',  p:'depth',   col:3,row:4, n:'Lid',         base:1980, max:6,
   d:l=>'climb out after '+(4.5+l*0.6).toFixed(1)+'s · '+Math.round(Math.min(95,l*18))+'% less boil-over'},
- {id:'draught', t:'pot',  p:'heat',    col:2,row:5, n:'Draught',     base:260, max:10,
+ {id:'draught', t:'pot',  p:'heat',    col:2,row:5, n:'Draught',     base:468, max:10,
   d:l=>'swirl holds '+Math.round((1/Math.pow(0.90,l)-1)*100)+'% longer, funnel pulls harder'},
- {id:'convect', t:'pot',  p:'draught', col:3,row:5, n:'Convection',  base:2000, max:9,
+ {id:'convect', t:'pot',  p:'draught', col:3,row:5, n:'Convection',  base:3600, max:9,
   d:l=>'the pot swirls '+Math.round(Math.min(45,l*6))+'% on its own'},
 
  // ── FIRE ─────────────────────────────────────────────
- {id:'woodpile',t:'fire', p:null,      col:1,row:7, n:'Woodpile',    base:55, max:9,
+ {id:'woodpile',t:'fire', p:null,      col:1,row:7, n:'Woodpile',    base:99, max:9,
   d:l=>'the rack holds '+(3+l)+' logs'},
- {id:'kindling',t:'fire', p:'woodpile',col:2,row:7, n:'Kindling',    base:160, max:10,
+ {id:'kindling',t:'fire', p:'woodpile',col:2,row:7, n:'Kindling',    base:288, max:10,
   d:l=>'a log arrives every '+(6.5*Math.pow(0.88,l)).toFixed(1)+'s'},
- {id:'stokepow',t:'fire', p:'woodpile',col:2,row:8, n:'Dry Wood',    base:240, max:8,
+ {id:'stokepow',t:'fire', p:'woodpile',col:2,row:8, n:'Dry Wood',    base:432, max:8,
   d:l=>'each log feeds the fire +'+Math.round((0.30+l*0.05)*100)+'%'},
- {id:'ember',   t:'fire', p:'stokepow',col:3,row:8, n:'Ember Bed',   base:1100, max:8,
+ {id:'ember',   t:'fire', p:'stokepow',col:3,row:8, n:'Ember Bed',   base:1980, max:8,
   d:l=>'the fire dies '+Math.round((1-Math.pow(0.88,l))*100)+'% slower'},
- {id:'bellows', t:'fire', p:'kindling',col:3,row:7, n:'Bellows',     base:30000, max:1,
+ {id:'bellows', t:'fire', p:'kindling',col:3,row:7, n:'Bellows',     base:54000, max:1,
   d:l=>l?'throws logs on whenever the rack is full':'it throws the logs for you'},
 
  /* ── THE WORD ─────────────────────────────────────────
     escalation. the kitchen gets busier, the company gets better, and what
     turns up gets harder to cook and worth more for it. */
- {id:'word',    t:'word', p:null,      col:1,row:11, n:'Word of Mouth', base:70, max:8,
+ {id:'word',    t:'word', p:null,      col:1,row:11, n:'Word of Mouth', base:126, max:8,
   d:l=>(24+l*6)+' of them milling about the kitchen'},
- {id:'queue',   t:'word', p:'word',    col:2,row:10, n:'The Queue',     base:200, max:9,
+ {id:'queue',   t:'word', p:'word',    col:2,row:10, n:'The Queue',     base:360, max:9,
   d:l=>'a newcomer every '+(4.5*Math.pow(0.86,l)).toFixed(1)+'s'},
- {id:'rep',     t:'word', p:'word',    col:2,row:11, n:'A Reputation',  base:420, max:8,
+ {id:'rep',     t:'word', p:'word',    col:2,row:11, n:'A Reputation',  base:756, max:8,
   d:l=>l?'better company: the crowd shifts toward the '+
         ['plain','fattened','moneyed','sanctified','celestial'][Math.min(4,Math.round(l*0.42))]
         :'draw a better class of ingredient'},
- {id:'smell',   t:'word', p:'word',    col:2,row:12, n:'The Smell',     base:340, max:6,
+ {id:'smell',   t:'word', p:'word',    col:2,row:12, n:'The Smell',     base:612, max:6,
   d:l=>'+'+(l*10)+'% harder for anyone to walk past the pot'},
- {id:'notor',   t:'word', p:'rep',     col:3,row:11, n:'Notoriety',     base:2600, max:8,
+ {id:'notor',   t:'word', p:'rep',     col:3,row:11, n:'Notoriety',     base:4680, max:8,
   d:l=>'what turns up is ×'+(1+l*0.35).toFixed(2)+' tougher and ×'+
        Math.pow(1+l*0.35,1.5).toFixed(2)+' richer'},
 ];
@@ -1831,19 +2155,121 @@ const UP=[
    same. */
 const TIER={turnip:0,cabbage:0,rat:0,egg:0,chilli:0,garlic:0,beet:0,
             chicken:1,peasant:1,snail:1,mushroom:1,goose:1,
-            merchant:2,knight:2,bard:2,taxman:2,
-            saint:3,ox:3,wizard:3,ghost:3,
+            merchant:2,knight:2,bard:2,taxman:2,millstone:2,
+            saint:3,ox:3,wizard:3,ghost:3,statue:3,
             angel:4,comet:4,city:4,kraken:4};
 for(const k in KIND) KIND[k].tier=TIER[k]||0;
 for(const k in KIND) KIND[k].vol=Math.pow(KIND[k].s/27,2);   // displacement
 const TRUNK={hand:'The Hand',pot:'The Pot',fire:'The Fire',word:'The Word'};
 const lv={}; for(const u of UP) lv[u.id]=0;
+/* THIS BLOCK SITS HERE, above recalc(), because recalc() READS `leg` and runs
+   during init. Declared next to the chef state it spends — which is where it
+   belongs by subject — it was in the temporal dead zone on the first call and
+   the whole game failed to boot. The harness caught it in one run: `__soup dev
+   handle never attached — init probably failed`. */
+/* ═══ THE LEGACY TREE — "The Cook's Reputation" ═══════════════════════════════
+   Where stars go. CHEF.md §3. Permanent, carried into every run, applied at run
+   START — and the rule that keeps it honest: a legacy node may shorten the climb
+   or change its shape, but it must never delete the run. Head starts, not skips.
+
+   Cost is per LEVEL and flat, so the table reads the way §3 writes it: Mise en
+   Place at 2 is ten stars for all five levels. A rising cost would make the last
+   level of the cheapest node dearer than the first of the dearest, which is the
+   thing GROWTH=1.70 exists to do in the *upgrade* tree and the wrong shape here —
+   this tree is five choices, not twenty-one.
+   Ascension is deliberately absent: it is its own issue, and it is the only node
+   that makes a run HARDER, so it wants its own gate and its own conversation. */
+const LEG=[
+ /* ONE STAR, not two. The first chef level mints exactly one star, and with
+    every node at 2 or more that star bought nothing — which is the same "a
+    promise with no payoff" this tree was built to fix, just moved one level
+    later. The cheapest node has to be reachable with the first star you are
+    ever given. */
+ {id:'mise',    n:'Mise en Place',  cost:1, max:5,
+  d:l=>l?'start every run with the '+l+' cheapest upgrade'+(l>1?'s':'')+' already bought'
+        :'start every run with the cheapest upgrade already bought',
+  w:'The station is laid out before you arrive.'},
+ {id:'welcome', n:'Warm Welcome',   cost:3, max:3,
+  d:l=>'the smell carries from the first second — allure floor +'+(l*10)+'%',
+  w:'Word never entirely died down.'},
+ {id:'memory',  n:'Long Memory',    cost:3, max:2,
+  d:l=>'time away pays for '+(l>=2?'4 hours':'2 hours')+', at '+
+       (l>=2?'55%':'44%')+' of your rate',
+  w:'They remember the place, even shut.'},
+ {id:'menu',    n:'Full Menu',      cost:4, max:2,
+  d:l=>(4+l)+' recipe cards a run, instead of four',
+  w:'You are trusted with more of the book.'},
+ {id:'pockets', n:'Deep Pockets',   cost:5, max:3,
+  d:l=>'carry '+(l*10)+'% of the broth you end on into the next run',
+  w:'Something always survives the pour.'},
+];
+let leg={}; for(const n of LEG) leg[n.id]=0;
+let legCarry=0;            // broth banked by Deep Pockets, waiting for the next run
+const legBy={}; for(const n of LEG) legBy[n.id]=n;
+const legCost=n=>n.cost;                       // flat per level, on purpose
+function legSpent(){ let t=0; for(const n of LEG) t+=n.cost*leg[n.id]; return t; }
+function legBuy(n){
+  if(leg[n.id]>=n.max) return false;
+  if(chefStars<legCost(n)) return false;
+  chefStars-=legCost(n); leg[n.id]++;
+  saveMeta(); paintLegacy(); paintChef();
+  /* the two that read off ST rather than off run start have to take effect NOW,
+     or buying them mid-run does nothing until you finish — which reads as broken
+     rather than as "next run". The other three are start-of-run by nature. */
+  applyMods(); recalc();
+  return true;
+}
+/* AWAY is no longer a constant pair: Long Memory moves both. Read through these
+   two rather than the old consts so there is one source of truth. */
+function awayCap(){ return leg.memory>=2 ? 4*3600 : leg.memory>=1 ? 2*3600 : 3600; }
+function awayRate(){ return leg.memory>=2 ? 0.55 : leg.memory>=1 ? 0.44 : 0.34; }
+function cardsPerRun(){ return 4+leg.menu; }
+/* APPLIED AT RUN START, after setAct(1) has wiped the run clean. Order matters:
+   Mise en Place buys upgrade levels, so it has to run after `lv` is zeroed and
+   before the tree is painted. */
+function applyLegacy(){
+  if(leg.mise>0){
+    /* the CHEAPEST nodes, and reachable ones only — a node whose parent is
+       unbought is not "cheapest", it is unavailable, and setting its level
+       anyway would hand out a node the tree still draws as locked. */
+    /* CHEAPEST BY CURRENT COST, re-sorted every pass. Sorting once by `base`
+       spent all five levels on the single lowest-base node — five levels of Ladle
+       Width, which is a spike on one axis rather than a laid-out station, and is
+       not even "cheapest" after the first buy, since cost(u) climbs 1.70× a
+       level. Re-reading cost(u) each pass spreads it, because every purchase
+       makes that node the expensive one. */
+    let n=leg.mise, guard=UP.length*6;
+    while(n>0&&guard-->0){
+      const pick=UP.filter(u=>lv[u.id]<u.max&&shown(u))
+                   .sort((a,b)=>cost(a)-cost(b))[0];
+      if(!pick) break;
+      lv[pick.id]++; n--; recalc();
+    }
+  }
+  if(legCarry>0){ broth+=legCarry; legCarry=0; saveMeta(); }
+  recalc(); applyMods();
+}
+/* BANKED AT THE POUR, not at the start of the next run: `endBroth` is what the
+   pot was worth when you chose an ending, and it is gone from `broth` by the
+   time a new run begins. Capped at 30% by the node's three levels, and refused
+   while maxed for the same reason save() refuses — a dev run must not pay. */
+function legBank(){
+  if(preMax||leg.pockets<=0) return;
+  legCarry=Math.floor(endBroth*Math.min(0.30,leg.pockets*0.10));
+  saveMeta();
+}
 const byId={}; for(const u of UP) byId[u.id]=u;
 /* 1.15 was far too shallow: nodes only have 6–14 levels, while income grows
-   exponentially, so the last level cost barely more than the first. 1.70 makes
-   the top of a branch a real decision. `g` is per-node so any single one can be
-   tuned without touching the rest. */
-const GROWTH=1.70;
+   exponentially, so the last level cost barely more than the first. `g` is
+   per-node so any single one can be tuned without touching the rest.
+   FIRST PASS AT #22: 1.70 made the WHOLE tree cost ~1.9M, so a run reaching 500M
+   maxed it 250× over — fully bought by mid-act-4, with the entire back half of
+   the run having nothing to spend on. 2.05 costs ~10M to max (5× steeper),
+   pushing "nothing left to buy" out to late act 4 / act 5, while leaving the
+   FIRST level of every node untouched (base·g^0), so the opening still feels
+   affordable. Provisional — the real curve gets set by the #2 full-run
+   measurement, and a true late-game sink is still wanted (#22). */
+const GROWTH=2.05;
 const cost=u=>Math.ceil(u.base*Math.pow(u.g||GROWTH,lv[u.id])*MOD.costMul);
 const shown=u=>!u.p||lv[u.p]>0;
 let ST={};
@@ -1872,7 +2298,9 @@ function recalc(){
     crowd  : Math.round((24+lv.word*6)*MOD.crowdMul),
     newRate: MOD.spawnFast/(4.5*Math.pow(0.86,lv.queue)),
     tier   : Math.max(0,lv.rep*0.42+MOD.tierAdd),
-    allureB: lv.smell*0.10,
+    /* + the Legacy floor: Warm Welcome is a head start on the smell, so it
+       reads through the same number The Smell upgrade already moves. */
+    allureB: lv.smell*0.10 + leg.welcome*0.10,
     hardy  : 1+lv.notor*0.35,
   };
 }
@@ -1950,7 +2378,8 @@ const CAST={
      dragon and the leviathan get hungry; the widow and the emperor do not
      hurry for anyone, and the dog is simply pleased to be here. */
   dog:{ n:'A Dog', say:'!', gone:'a very good dog', growWait:0, wait:'in no hurry',
-    base:50, grow:2.4,
+    w:0.35,   // the very first face: a tutorial, not a wall
+    
     draw(s){
       const bob=Math.sin(T*2.4)*s*0.05;
       ctx.save(); ctx.translate(0,bob);
@@ -1986,7 +2415,8 @@ const CAST={
      rest". 0.30 was tried once already and made him impossible by construction.
      The fix is in the supply or in the rule, not in this constant. */
   inspector:{ n:'The Guild Inspector', gone:'noted', growWait:0,
-    wait:'he is writing something down', base:420, grow:2.2, pat:95,
+    wait:'he is writing something down', w:0.80,   // act 1's closer, and the first real rule
+     pat:95,
     pal:{ax:1, max:0.38}, draw(s){
       const bob=Math.sin(T*1.2)*s*0.03;
       ctx.save(); ctx.translate(0,bob);
@@ -2020,8 +2450,16 @@ const CAST={
 
   /* Enormous, and getting hungrier by the second. No palate at all — the clean
      throughput wall. Too big for the stool, so it leans over the counter. */
-  dragon:{ n:'A Dragon', gone:'it wants the recipe', growWait:0.030, base:9000,
-    grow:2.6, pat:80, pal:null, big:1.55, draw(s){
+  /* PATIENCE 130, NOT 80. The order-size rule (#27) is that a bowl must be
+     fillable inside the patience window, and the dragon was the only diner in
+     the game that broke it: 1.60 x 55s is 88 seconds of work against 80 seconds
+     of patience — 110% of the window. So it went to send-backs every time, and
+     as a callback in act 4 it stopped the run seven send-backs deep.
+     Its impatience is not this number anyway: it lives in `growWait`, which
+     inflates the order while it is still knocking. That is the character. This
+     was the shortest fuse in the game bolted to the second-biggest bowl. */
+  dragon:{ n:'A Dragon', gone:'it wants the recipe', growWait:0.030, w:1.60,   // act 2's closer: pure throughput, no rules
+     pat:130, pal:null, big:1.55, draw(s){
       const bob=Math.sin(T*1.1)*s*0.04;
       ctx.save(); ctx.translate(0,bob-s*0.35);
       shape(()=>{ ctx.ellipse(0,0,s*1.05,s*0.74,0,0,TAU); },s,'#5E7A4A','#3E5430');
@@ -2064,7 +2502,8 @@ const CAST={
   /* She names an INGREDIENT, not a flavour — the first order that does. And
      she is in no hurry whatsoever. */
   widow:{ n:'The Widow', gone:'she takes the recipe with her', growWait:0,
-    wait:'she has waited longer than this', base:1400, grow:2.2,
+    wait:'she has waited longer than this', w:0.70,   // a hunt for one merchant, so less volume
+    
     say:'He was very sweet.', req:'merchant', big:0.82,
     draw(s,m){
       m=m||{};
@@ -2116,7 +2555,8 @@ const CAST={
   /* NINE SMALL BOWLS in sequence, and the profile they want rotates each
      round — so a one-note pot cannot finish them. One coat, one tie. */
   council:{ n:'The Council of Nine', gone:'a majority, at last', growWait:0,
-    wait:'they are still arguing', base:2800, grow:2.1, pat:150,
+    wait:'they are still arguing', w:0.28,   // PER BOWL, and there are nine of them (2.5 all told)
+     pat:150,
     say:'We have not reached consensus.', rounds:9, rotate:1,
     pal:{ax:0, max:0.44}, big:0.60,
     draw(s,m){
@@ -2163,7 +2603,8 @@ const CAST={
   /* NOTHING THAT WAS EVER ALIVE. rewards reading the ingredient table — a
      city is masonry, a comet is rock, and both are perfectly legal. */
   emperor:{ n:'The Emperor', gone:'he does not thank you', growWait:0,
-    wait:'he does not hurry for anyone', base:40000, grow:2.3,
+    wait:'he does not hurry for anyone', w:1.40,   // his ban means much of what you cook does not count
+    
     say:'Vegetables. And stone, if it is well made.',
     ban:'alive', big:0.74,
     draw(s,m){
@@ -2219,7 +2660,8 @@ const CAST={
   /* SENDS IT BACK ONCE, on principle — a joke boss whose entire job is to
      defuse the send-back by making it obviously survivable. */
   leviathan:{ n:'The Leviathan', gone:'it submerges', growWait:0.020,
-    wait:'it is not blinking', base:300000, grow:2.4, pat:120,
+    wait:'it is not blinking', w:1.00,   // he rejects the first correct bowl on principle
+     pat:120,
     say:'…', spite:1, big:1.05,
     draw(s,m){
       m=m||{};
@@ -2264,7 +2706,8 @@ const CAST={
   /* THREE PROFILES AT ONCE — one god each, all three minimums live together.
      The peak of the curve: you cannot solve it by cooking one thing well. */
   pantheon:{ n:'The Pantheon', gone:'they leave separately', growWait:0,
-    wait:'they are not speaking', base:500000, grow:2.3, pat:170,
+    wait:'they are not speaking', w:1.70,   // act 4's closer, and three caps at once
+     pat:170,
     say:'Do not serve him first.', pal3:0.46, big:0.52,
     draw(s,m){
       m=m||{};
@@ -2324,7 +2767,8 @@ const CAST={
      he demands the axis you have been NEGLECTING, so the wall is built out of
      whatever habit you fell into. Same apron. Same ladle. */
   cook:{ n:'The Cook Who Came Before You', gone:'he puts the ladle down',
-    growWait:0, wait:'he is watching how you hold it', base:4000000, grow:2.2,
+    growWait:0, wait:'he is watching how you hold it', w:1.50,   // he caps whatever you have leaned on hardest
+    
     pat:200, say:'I know what you have been putting in.', mirror:0.44, big:0.78,
     draw(s,m){
       m=m||{};
@@ -2373,7 +2817,8 @@ const CAST={
   /* THE LAST DINER IS THE POT.  no palate — there is nothing left to teach.
      the ending itself is still [design]; she is playable as the final wall. */
   mother:{ n:'Mother Stock', gone:'she has been very good to you', growWait:0,
-    wait:'she has always been here', base:30000000, grow:2.0,
+    wait:'she has always been here', w:1.00,   // unused: her order is the pot itself, read off the score
+    
     say:'You have been very good to me.', pal:null, big:1.15, last:1,
     draw(s,m){
       m=m||{};
@@ -2557,7 +3002,77 @@ let runOver=false, ending=null, endT=0, endBroth=0, backs=0, afterBook=null;
    meant late acts summoned somebody every few seconds. 2.6× an act is a guess —
    the real exponent needs the playthrough measurement in ENDGAME.md, and it is
    one number to change when we have it. */
-const doorPops=()=>Math.round(30*Math.pow(2.6,clamp(act,1,5)-1));
+/* HOW LONG A BUSY POT TAKES TO BRING SOMEBODY IN.  Seconds of full-tilt
+   cooking, not a count of pops — see the door term in stepDiner for why that
+   distinction cost a whole tuning pass.
+
+   18, NOT 70, AND THE 70 WAS MY ARITHMETIC ERROR. The design's ~70s a diner is
+   the WHOLE cycle, and the door only advances while nobody is seated — so door
+   time and bowl time are sequential, not overlapping. At 70 the cycle was 70
+   waiting plus ORDER_SECS x weight filling, about 150s a serve, which measured
+   out at nine serves in twenty-three minutes and a fifty-minute run.
+   This is the GAP between guests: 18s of busy cooking, plus a bowl that is
+   0.35-1.70 x 55s, comes to 37-112s a serve and averages near the 70 the design
+   asks for. */
+const DOOR_SECS=18;
+/* ═══ HOW BIG A BOWL IS ═══════════════════════════════════════════════════════
+   It used to be `base · grow^(act-1)`, twenty hand-set constants that had never
+   been checked against anything. `--playthrough` (#2) checked them, and they
+   were wrong in a way no amount of retuning fixes:
+
+     · Three orders asked for more broth than their whole act earns. The Emperor
+       wanted 47,000 successful pops against a target of about 210.
+     · The lesser-to-closer ratio inside a pair swung from 1.7x to 14x, with no
+       pattern — the Emperor was 4.4x the Dragon and 28x the Widow.
+     · And the reason a fixed constant CANNOT work: income multiplies about
+       tenfold WITHIN a single act as the tree fills, so any absolute number is
+       trivial at one end of an act and impossible at the other. Act 2 went from
+       6k/min to 60k/min in five minutes.
+
+   So the scale is derived and only the CHARACTER is authored. A bowl is what you
+   can currently earn in ORDER_SECS, times that diner's weight — so it is always
+   about a minute's work, whatever act you are in, whatever you have bought, and
+   whatever the recipe cards did to your economy. The weights are the part that
+   was a design decision (a dragon is more than a dog) and they are kept; the
+   absolute numbers were a guess and they are gone.
+
+   The arithmetic closes, which the old table's never did: the ten weights plus
+   ten callbacks come to about 20 diner-units, and 20 x 55s is about 19 minutes
+   of cooking — the doors, the cards and the book make up the design's 24.
+
+   Same self-calibrating trick the Cook already used with `mirror`, and the one
+   ENDGAME.md kept pointing at. It cannot drift out of true, because there is no
+   longer a constant to drift. */
+const ORDER_SECS=55;
+const ORDER_FLOOR=40;        // so the very first bowl is not zero-sized
+/* WHAT FRACTION OF YOUR COOKING A DINER ACTUALLY COUNTS.  The Emperor bans
+   anything that was ever alive, and the measured run showed what that does to a
+   bowl sized like everybody else's: the pot earned 2M a minute while his bowl
+   filled at 200k a minute, so 2.6M took him thirteen minutes and act 3 went to
+   387 seconds a serve. His weight said "about a minute's work"; his ban made it
+   thirteen.
+   The share is not constant either — it falls as A Reputation shifts the crowd
+   up a ladder whose upper rungs are mostly alive, from 60% at rep 0 to 19% at
+   rep 8 — so no hand-set weight could track it. Computed from the act's own
+   supply, weighted the way pickKind actually delivers. */
+function countableShare(c){
+  if(c.ban!=='alive') return 1;
+  let all=0, ok=0;
+  for(const k of A.kinds){
+    const K=KIND[k]; if(!K) continue;
+    const dd=(K.tier||0)-ST.tier;
+    const w=(dd<=0?Math.exp(-dd*dd/6.0):Math.exp(-dd*dd/0.55))/(K.tough||1)*(1+K.rich*0.02);
+    all+=w; if(NEVER_ALIVE[k]) ok+=w;
+  }
+  return all>0 ? Math.max(0.12, ok/all) : 1;      // floored, so it cannot divide by ~0
+}
+function orderSize(c){
+  /* the floor matters twice: at the very start earnEMA is 0, and after a lull it
+     is small. Both would otherwise hand out free orders. */
+  const rate=Math.max(earnEMA, earnPeak*0.6);
+  const w=(c.w||1)*countableShare(c);
+  return Math.max(ORDER_FLOOR*w, rate*ORDER_SECS*w)*MOD.needMul;
+}
 function newDiner(kind){
   kind=kind||guestFor(rank);
   const c=CAST[kind];
@@ -2566,10 +3081,18 @@ function newDiner(kind){
      rota — so changing who visits silently rescaled the whole economy. a dog
      seen again in act 4 is a warm-up priced for act 4, and nothing else moves. */
   const a=actFor(rank);
-  const n=c.base*Math.pow(c.grow,a-1)*MOD.needMul;
-  diner={ kind, c, need:n, need0:n, got:0, fg:[0,0,0], kinds:{}, round:0,
+  const n=orderSize(c);
+  /* A NAMED INGREDIENT CAN ONLY BE DEMANDED IF THE ACT SENDS IT. The Widow asks
+     for a merchant; act 5's pool is cities, comets, angels, krakens, ghosts and
+     wizards, with no merchant anywhere in it — so as a callback in act 5 she was
+     unsatisfiable by construction, and the measured run stalled on her with a
+     bowl SIX TIMES full (39,808,697 against 6,638,227). Resolved per visit
+     rather than read off the cast, so the demand quietly lapses in an act that
+     cannot supply it instead of ending the run. */
+  const req = (c.req && A.kinds.indexOf(c.req)>=0) ? c.req : null;
+  diner={ kind, c, req, need:n, need0:n, got:0, fg:[0,0,0], kinds:{}, round:0,
           st:'knock', t:0, pat:c.pat||Infinity, patT:c.pat||Infinity, back:0,
-          spited:0 };
+          spited:0, stuck:0 };
   /* HE READS YOUR SAVE, and forbids your habit. He takes the axis you have been
      leaning on MOST and caps it — "I know what you have been putting in" — so
      the wall is built out of however you have been playing, and the better
@@ -2588,7 +3111,7 @@ function newDiner(kind){
    never quietly make it legal. anything with a face and a pulse is out; a city
    is masonry and a comet is rock, and both are perfectly legal. */
 const NEVER_ALIVE={turnip:1,cabbage:1,egg:1,chilli:1,garlic:1,beet:1,mushroom:1,
-                   city:1,comet:1};
+                   city:1,comet:1,millstone:1,statue:1};
 const wasAlive=k=>!NEVER_ALIVE[k];
 /* WHAT THE POT SMELLS OF, as three shares adding to one. Every palate rule is
    written against these rather than against absolute flavour, so a rule means
@@ -2669,14 +3192,37 @@ function capOver(d){
    it, and he will not take it until the pot is right. You have something to DO
    about it — thin the offending flavour out and top it up — where the old
    cumulative version made a bad pot permanent. Patience is the pressure. */
+/* ── THE MERCY RULE ─────────────────────────────────────────────────────────
+   Measured by `--playthrough` (#2), and it ended the run: the Council's cap
+   cannot be cleared against what act 3 actually supplies, so a competent player
+   filled his bowl to 3,582,285 against a need of 16,670 — TWO HUNDRED AND
+   FIFTEEN TIMES full — and he still would not take it. The game was
+   unfinishable, and had been since the caps were written.
+
+   A cap that can refuse an unbounded bowl is not a difficulty setting, it is a
+   wall with a percentage painted on it. So a cap is a COST now rather than a
+   veto: fill twice what was asked and he takes it anyway, grumbling. Ignoring
+   the palate stays expensive — you pay in volume, and volume is time — but it
+   can no longer end the run.
+
+   Two things fall out of this, both wanted. `got` can no longer run away to
+   seven figures, because the bowl is always accepted by 2×. And every order now
+   has TWO routes: fix the pot, or out-cook the objection. Only one of those was
+   ever available and in acts 3-5 it was the impossible one.
+
+   THIS IS A STOP-LOSS, NOT THE FIX. #1 is the fix — caps derived from what each
+   act supplies, so they are satisfiable by construction rather than by mercy.
+   The named-ingredient demand is deliberately NOT covered: that is a hunt, not a
+   quota, and since #20 the ticket tells you which upgrade brings one. */
+const MERCY=2;
 function orderMet(d){
   if(d.got<d.need) return false;
   const c=d.c;
   /* the one demand that is not a cap: a single NAMED ingredient. that is a
      hunt, not a quota — the crowd huddles by kind, so a merchant is a thing you
      can go and find. */
-  if(c.req && !d.kinds[c.req]) return false;
-  if(capOver(d)>=0) return false;
+  if(d.req && !d.kinds[d.req]) return false;
+  if(capOver(d)>=0 && d.got < d.need*MERCY) return false;
   return true;
 }
 function palBlown(d){
@@ -2691,10 +3237,22 @@ function palBlown(d){
    gains you nothing, it just costs you time. (The once-alive ban no longer routes
    through here: alive things are uncounted at the spoon, so they never ruin a
    bowl. See pop().) */
+/* HOW FAR AN ORDER CAN GROW.  Measured by --playthrough (#28): the growth
+   outran the player it was punishing. The dragon's 80s patience never changes,
+   so a player who misses the deadline gets a bigger bowl and the same clock —
+   23,423 -> 31,621 -> 42,688 -> 57,629 -> 77,799 across four send-backs, and the
+   run ended in act 2 with the gap widening every attempt.
+   The original reasoning — "a bigger order pays proportionally more, so stalling
+   gains you nothing" — is true of a player CHOOSING to stall and exactly
+   backwards for one who is trying and failing. The sting stays; the spiral does
+   not. Two send-backs' worth of growth is the ceiling. */
+const SENDBACK_MAX=2;
 function sendBack(why){
   const d=diner;
   d.back++; backs++; achSendBack(); d.got=0; d.fg=[0,0,0]; d.kinds={};
-  d.need=Math.round(d.need*1.35);
+  /* rounded on BOTH branches — the ceiling is need0*2 and need0 is a float, so
+     the raw min() surfaced an order of 8294399.999999999 on the ticket. */
+  d.need=Math.round(Math.min(d.need0*SENDBACK_MAX, d.need*1.35));
   d.patT=d.pat; d.t=0;
   serveFlash=-1;
   shouts.push({x:CTR.x,y:CTR.y-CTR.s*2.4,t:0,txt:why,quiet:false});
@@ -2713,6 +3271,111 @@ function nextRound(d){
                txt:'BOWL '+(d.round+1)+' OF '+d.c.rounds,quiet:true});
   if(shouts.length>7) shouts.shift();
   return false;
+}
+/* ═══ WHEN THE PLAYER IS STUCK, SAY SO ═══════════════════════════════════════
+   Matias, watching people play: *"the widow is the worst offender — it requires
+   a merchant and I've had players go 'it doesn't go away'."* He is right, and
+   the reason was nowhere on screen. Her ticket says MUST INCLUDE MERCHANT and
+   she has no patience timer at all, so she sits there forever while the player
+   hunts for something that, at rep 0, effectively never arrives: a merchant is
+   tier 2, `ST.tier` is `lv.rep*0.42`, and pickKind's falloff above your own
+   tier is exp(−dd²/0.55), so dd=2 weighs 0.0007 against a pool weight near ten.
+   One spawn in fourteen thousand. The wall is a TECH-TREE wall wearing an
+   ingredient's clothes, and nothing said so.
+
+   Three rules, and they are what keep this a hint rather than a tutorial:
+
+   1. It only speaks when there is genuinely no way forward. `stuckHint` returns
+      null while the order is merely in progress, and the ticket waits STUCK_T
+      seconds of that — or a single send-back, which is proof enough that the
+      rule was not understood.
+   2. It names the thing you can go and CLICK: an upgrade by its name in the
+      tree, or an ingredient with a ring drawn round it. Not the mechanic.
+   3. Every word is derived from the numbers the simulation is already using —
+      `ST.tier`, `share()`, the live contents of the pot — so it cannot drift
+      out of true the way a hand-written tip would.
+   ═════════════════════════════════════════════════════════════════════════ */
+const STUCK_T=25;                        // seconds of no way forward before we speak
+/* WHAT THE THREE AXES LOOK LIKE ON THE FLOOR.  the flavour tint under a loose
+   ingredient is AXC[fl], so the advice can point at the pools by colour — which
+   is the only way to say "stop cooking those" about a crowd of seventy. Names,
+   not hexes, because the player is reading, and these are what AXC renders as. */
+const AXHUE=['pink','violet','green'];
+const andList=a=>a.length<2?(a[0]||''):a.slice(0,-1).join(', ')+' and '+a[a.length-1];
+/* is the thing they were told to include standing in the room right now?
+   preference order: in your hand, then in the pot, then loose on the floor —
+   the nearest to done, since that is the one worth pointing at. Anything
+   already fully dissolved is nobody's answer. */
+function wantedItem(k){
+  let best=null;
+  for(const it of items){
+    if(it.kind!==k||it.done>=1) continue;
+    if(it.st==='held') return it;
+    if(!best||best.st==='loose') best=it;
+  }
+  return best;
+}
+/* WHICH AXES ARE OVER.  written off the same `d.pal`/`pal3` the ticket and
+   capOver() read, so the hint cannot name an axis the rule does not care about. */
+function capsOver(d){
+  const out=[], c=d.c, p=d.pal||c.pal;
+  if(c.pal3!==undefined){ for(let i=0;i<3;i++) if(share(i)>c.pal3) out.push(i); }
+  else if(p&&p.max!==undefined&&share(p.ax)>p.max) out.push(p.ax);
+  return out;
+}
+/* the diagnosis itself. null means "nothing is standing in the way that the
+   player cannot already see", which is most of the time. */
+function stuckHint(d){
+  if(!d||d.st!=='wait'||d.c.last) return null;
+  /* AN INGREDIENT NAMED BY NAME.  first, because it is the one wall in the game
+     with no timer on it and no way to see why. */
+  if(d.req && !d.kinds[d.req]){
+    const k=d.req, K=KIND[k]||{};
+    if(wantedItem(k))
+      return {a:'IT IS IN THE ROOM', b:'the ringed '+k+'. get it into the pot.', ring:k};
+    if((K.tier||0) > ST.tier+0.6)
+      return {a:'NOBODY LIKE THAT COMES', b:'a '+k+' is better company than this '+
+        'kitchen draws. A Reputation, under The Word, shifts who turns up.', ring:k};
+    return {a:'NONE HAVE COME YET', b:'keep the kitchen full and one will wander '+
+      'in. Word of Mouth, and The Queue.', ring:k};
+  }
+  /* A CAP.  the advice is always "cook the other colours", which is true by
+     construction: flavour decays at one rate on all three axes, so a share only
+     ever moves by what you put in next. At most two axes can exceed a 0.46 cap,
+     so there is always something safe left to cook. */
+  const over=capsOver(d);
+  if(over.length){
+    const safe=[0,1,2].filter(i=>over.indexOf(i)<0);
+    /* the heading is COOK INSTEAD rather than a second "too sweet": the row
+       above already says which axis is over, and the swatches beside this one
+       are the answer, so the two lines say different things. */
+    return { a:'COOK INSTEAD', sw:safe,
+      b:'the '+andList(over.map(i=>AXHUE[i]))+' pools on the floor are the '+
+        andList(over.map(i=>AX[i].toLowerCase()))+' ones. cook the '+
+        andList(safe.map(i=>AXHUE[i]))+' and it thins as you do.' };
+  }
+  return null;
+}
+/* ONE decision, asked by both the ticket and the ring, so the two cannot
+   disagree about whether the player is stuck. */
+function hintNow(){
+  const d=diner;
+  if(!d||!(d.back>0||d.stuck>STUCK_T)) return null;
+  return stuckHint(d);
+}
+/* monospace wrap by CHARACTER COUNT, not by measureText — the harness stubs
+   measureText, and the ticket font is fixed-pitch anyway, so counting is both
+   exact and testable. See the `fs*3.4` floor on the bar inset for the same
+   problem solved the other way round. */
+function wrapMono(s,cols){
+  const out=[]; let ln='';
+  for(const w of String(s).split(' ')){
+    if(!ln) ln=w;
+    else if(ln.length+1+w.length<=cols) ln+=' '+w;
+    else { out.push(ln); ln=w; }
+  }
+  if(ln) out.push(ln);
+  return out;
 }
 function letThemIn(){
   if(!diner||diner.st!=='knock') return false;
@@ -2743,7 +3406,28 @@ function stepDiner(dt){
        The actual filling comes from pops, in `pop()`. */
     /* the run is over: the door stays shut, whatever the pot still smells like. */
     if(runOver) return;
-    doorT+=dt*(0.25+allure*0.35)/(60*MOD.doorMul);
+    /* ── THE DOOR RUNS ON BUSY TIME ────────────────────────────────────────
+       Two rules, and they used to fight each other.
+
+       Matias: *"guests can't be on a timer, they need to visit because YOU did
+       something."* So there is no term here that runs while the pot is cold —
+       `cookBusy` is 0 then, and nothing moves. That much was already fixed.
+
+       But the fix was denominated in POPS — a guest per N things dissolved —
+       and that quietly tied guest pacing to how upgraded you were. Raising the
+       tech tree's price cut the pop rate, which cut the guest rate, which
+       stalled the run: two dials wired together, so tuning either broke the
+       other. Measured: a 3x tree price collapsed earnings 60x.
+
+       Denominated in BUSY SECONDS instead. A pot going flat out brings somebody
+       in DOOR_SECS whether it is popping two a second or sixty, because
+       cookBusy is normalised against what its own act expects. A pot half busy
+       takes twice as long. A cold pot takes forever. The tree can now cost
+       anything at all and this number does not move.
+
+       Upgrades still help, as a MULTIPLIER rather than a floor: The Smell makes
+       a busy pot carry further, but it cannot make an idle one smell. */
+    doorT+=dt*cookBusy*(1+ST.allureB)/(DOOR_SECS*MOD.doorMul);
     /* newDiner() with NO argument, so it takes the next name off the ROTA.
        this line said newDiner('dog') — a phase-1 leftover from when the dog was
        the dumbest possible boss, there to find out whether a diner fitted on
@@ -2756,6 +3440,13 @@ function stepDiner(dt){
     return;
   }
   diner.t+=dt;
+  /* HOW LONG THIS HAS BEEN HOPELESS.  it only climbs while stuckHint() has
+     something to say, and it drops to nothing the instant the obstacle clears —
+     so it measures the wall rather than the visit, and a player who is simply
+     filling a bowl slowly is never spoken to. Deliberately NOT reset by
+     sendBack() or nextRound(): the merchant that has not come is the same
+     merchant on the second bowl. */
+  diner.stuck = stuckHint(diner) ? diner.stuck+dt : 0;
   // only the impatient ones inflate; for everyone else waiting is free
   const gw=diner.c.growWait||0;
   if(diner.st==='knock'&&gw>0) diner.need*=Math.pow(1+gw,dt);
@@ -2805,10 +3496,18 @@ function drawOrderCard(cxp,cyp){
   const d=diner, cw=CTR.w*1.10, pad=R*0.05;
   const fs=Math.round(Math.max(10,R*0.062));
   const pal=d.pal||d.c.pal;
+  /* the hint is measured BEFORE the card is sized, because it is the only block
+     on the ticket whose height is not one row — it wraps. `cw` is a little over
+     two pot radii and the font is fixed-pitch at ~0.62em, which is fifty-odd
+     columns; the advice is written to fit two lines of that. */
+  const hint = d.st==='out' ? null : hintNow();
+  const hcol = Math.max(18, Math.floor((cw-pad*2)/(fs*0.85*0.62)));
+  const hln  = hint ? wrapMono(hint.b, hcol) : [];
   const rows = 1 + ((pal&&pal.max!==undefined)?1:0) + (d.c.pal3!==undefined?3:0)
-                 + (d.c.req?1:0) + (d.c.ban?1:0) + (d.c.rounds?1:0)
+                 + (d.req?1:0) + (d.c.ban?1:0) + (d.c.rounds?1:0)
                  + (d.pat<Infinity?1:0) + (d.back?1:0)
-                 + ((capOver(d)>=0&&d.got>=d.need)?1:0);
+                 + ((capOver(d)>=0&&d.got>=d.need)?1:0)
+                 + (hint?1.3+hln.length*0.86:0);
   const ch=pad*2+fs*1.35*(rows+1);
   const m=Math.max(8,W*0.012);
   const cx0=clamp(cxp-cw/2, m, Math.max(m,W-cw-m));
@@ -2887,11 +3586,11 @@ function drawOrderCard(cxp,cyp){
     ctx.textAlign='left'; ry+=fs*1.35;
   }
   // an ingredient named by name
-  if(d.c.req){
-    const got=!!d.kinds[d.c.req];
+  if(d.req){
+    const got=!!d.kinds[d.req];
     lab('MUST INCLUDE', got?'#8ED96A':'#B69C9E', cx0+pad);
     ctx.textAlign='right';
-    lab(d.c.req.toUpperCase()+(got?'  ✓':''), got?'#8ED96A':'#FFD35C', cx0+cw-pad-4);
+    lab(d.req.toUpperCase()+(got?'  ✓':''), got?'#8ED96A':'#FFD35C', cx0+cw-pad-4);
     ctx.textAlign='left'; ry+=fs*1.35;
   }
   // and one forbidden outright
@@ -2927,10 +3626,48 @@ function drawOrderCard(cxp,cyp){
   if(co>=0&&d.got>=d.need){
     lab('TOO '+AX[co],'#FF8FA0',cx0+pad);
     ctx.textAlign='right';
-    lab('THIN IT OUT','#FF8FA0',cx0+cw-pad-4);
+    /* BOTH ROUTES, because the mercy rule is useless as a secret: thin the
+       offending flavour, or out-cook the objection. The number is what is still
+       owed on the second route, so it counts down as you work. */
+    const owed=Math.max(0,d.need*MERCY-d.got);
+    lab('THIN IT  ·  OR +'+fmt(owed),'#FF8FA0',cx0+cw-pad-4);
     ctx.textAlign='left'; ry+=fs*1.35;
   }
-  if(d.back) lab('SENT BACK ×'+d.back+'  ·  order grew','#FF9A6A',cx0+pad);
+  if(d.back){ lab('SENT BACK ×'+d.back+'  ·  order grew','#FF9A6A',cx0+pad);
+              ry+=fs*1.35; }
+  /* ── THE HINT, ruled off from the order itself ──────────────────────────────
+     Below a hairline, because it is not part of the ticket he wrote — it is the
+     kitchen telling you what is in the way. Amber for the heading, and where the
+     answer is a colour on the floor, the colours themselves sit beside it: the
+     advice says "cook the pink and violet ones" and then shows you pink and
+     violet, so it does not rest on the player and the renderer agreeing about
+     what `#B08CFF` is called. */
+  if(hint){
+    ry+=fs*0.25;
+    ctx.beginPath(); ctx.moveTo(cx0+pad,ry-fs*0.42); ctx.lineTo(cx0+cw-pad,ry-fs*0.42);
+    ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,211,92,.28)'; ctx.stroke();
+    ctx.lineWidth=Math.max(3,fs*0.28);
+    ry+=fs*0.95;
+    lab(hint.a,'#FFD35C',cx0+pad);
+    /* THE SWATCHES SIT AFTER THE HEADING, not against the right edge. Measured
+       off the heading's own character count at the row's monospace advance —
+       the same 0.62em the wrap uses — because the first version anchored them to
+       `cx0+cw-pad-4` and the last one came out half under the card's border.
+       Growing rightwards from a short label cannot reach the edge; growing
+       leftwards from the edge has to be right first time. */
+    if(hint.sw){
+      const sq=fs*0.70, gap=sq*1.35;
+      const s0=cx0+pad+(hint.a.length+2)*fs*0.62;
+      hint.sw.forEach((ax,i)=>{
+        ctx.beginPath(); ctx.rect(s0+i*gap, ry-fs*0.72, sq, sq);
+        ctx.fillStyle=AXC[ax]; ctx.fill();
+        ctx.lineWidth=2; ctx.strokeStyle=INK; ctx.stroke();
+      });
+      ctx.lineWidth=Math.max(3,fs*0.28);
+    }
+    ctx.font='700 '+Math.round(fs*0.85)+'px ui-monospace,Menlo,monospace';
+    for(const line of hln){ ry+=fs*1.15; lab(line,'#C9B6BC',cx0+pad); }
+  }
 }
 /* THE STAR HAS NO WALL to cut a hatch into. In act 5 the last diners — The Cook
    Who Came Before You, and Mother Stock — arrive through a rift of cold light
@@ -4069,6 +4806,14 @@ function step(dt){
      become a sun. */
   const aromaFull=2.9*Math.pow(2.2,clamp(act,1,5)-1)/0.1508;
   allure=Math.min(1.60, 1.60*Math.sqrt(Math.max(0,popRate/aromaFull)) + ST.allureB);
+  /* HOW BUSY THE POT IS, 0..1, and deliberately WITHOUT `ST.allureB`. Allure
+     carries an upgrade floor — The Smell and Warm Welcome both raise it — so a
+     player who had bought either would have a smelly pot while cooking nothing,
+     and the door must never open for that. This is the cooking term alone.
+     Already act-normalised: aromaFull divides by 2.2^(act-1), which is the
+     measured growth of the pop rate, so "flat out" reads the same in act 1 and
+     act 5 however upgraded you are. That is the whole decoupling. */
+  cookBusy=Math.min(1, Math.sqrt(Math.max(0,popRate/aromaFull)));
   // Word of Mouth: the kitchen fills up, at the rate The Queue allows
   newT-=dt;
   if(newT<=0){
@@ -4076,8 +4821,34 @@ function step(dt){
     if(items.length<ST.crowd) items.push(spawn());
   }
   for(let i=shouts.length-1;i>=0;i--){ shouts[i].t+=dt*0.85; if(shouts[i].t>1) shouts.splice(i,1); }
+  /* ── THE CEILINGS (#25) ────────────────────────────────────────────────────
+     `floats` has been capped at 44 since it was written, and that cap is the
+     only reason the score popups were cheap — measured, they are the most
+     expensive thing on screen PER ITEM. These four had no ceiling at all, and
+     each pop spawns 10-28 sparks and up to 9 coins, so they grew with the pop
+     rate — which is precisely what the whole upgrade tree exists to raise.
+
+     Set well above anything play produces: a natural maxed act 5 runs at ~6
+     pops/sec with about 56 sparks and 16 coins alive, so these are twenty-odd
+     times the working set and will not engage in a game anybody is playing.
+     They exist for the pathological end, where batching alone still leaves one
+     path node per particle and the only remaining lever is fewer particles.
+
+     OLDEST FIRST, in one splice rather than a shift() per frame: the oldest
+     particles are the faintest, so they are the least missed, and dropping the
+     newest would rob the pop you just made of its spark burst — which is the
+     one you are looking at. */
+  /* floats is capped at its main push site too, but the tip and the taxman push
+     without one — so it could sit a couple over and the meter's own label read
+     46/44. Enforced here as well, so all five ceilings are true in one place. */
+  if(floats.length>FLOAT_MAX) floats.splice(0, floats.length-FLOAT_MAX);
+  if(sparks.length>SPARK_MAX) sparks.splice(0, sparks.length-SPARK_MAX);
+  if(coins.length >COIN_MAX ) coins.splice(0, coins.length -COIN_MAX);
+  if(pops.length  >POP_MAX  ) pops.splice(0, pops.length  -POP_MAX);
+  if(waves.length >WAVE_MAX ) waves.splice(0, waves.length -WAVE_MAX);
   earnT+=dt;
-  if(earnT>=1){ earnEMA=earnEMA*0.82+earnWin*0.18; earnWin=0; earnT-=1; }
+  if(earnT>=1){ earnEMA=earnEMA*0.82+earnWin*0.18; earnWin=0; earnT-=1;
+                earnPeak=Math.max(earnEMA, earnPeak*0.995); }
   return under;
 }
 /* ═════════════════════════════════════════════════════════════
@@ -4272,8 +5043,8 @@ function pop(it){
     /* aroma is a modifier with a ~2× span, not a 6× one. it used to swing the
        interval by six times, which is why a fragrant pot summoned somebody
        every ten seconds however little you were doing. */
-    const need=doorPops()*MOD.doorMul;
-    doorT+=(0.75+allure*0.45)/need;
+    /* the door no longer counts pops — see the busy-time term in stepDiner.
+       This is only the visual nudge that says the hatch heard you. */
     doorKick=1;
   }
   combo++; comboT=1.35;
@@ -4892,6 +5663,38 @@ function drawHealth(){
     if(inPotNow) drawDepthLine(it,S);
   }
 }
+/* RING THE THING THEY WERE TOLD TO FIND.  a merchant and a taxman are two men
+   in tall hats at 37px across a room of seventy, so "MUST INCLUDE MERCHANT" is
+   unanswerable if you cannot tell them apart — which is half of why the widow
+   reads as broken. Once the hint is up, the one she wants wears a ring wherever
+   it is: on the floor, in the air, in your hand or already in the pot.
+   Drawn in the same post-pass style as drawHealth(), off the same `persp`, so a
+   ring never lands somewhere the sprite is not. */
+function drawWanted(){
+  const h=hintNow();
+  if(!h||!h.ring) return;
+  const it=wantedItem(h.ring);
+  if(!it) return;
+  const persp = it.st==='loose' ? 0.84+0.30*clamp((it.y-(FY-FRY))/(FRY*2),0,1) : 1;
+  const S=it.K.s*A.scale*persp, y=it.y-(it.z||0);
+  const p=0.5+0.5*Math.sin(T*4.2);
+  // a floor on the radius, for the same reason the escape ring has one
+  const rr=Math.max(S*0.1, S*(1.12+p*0.22));
+  ctx.beginPath(); ctx.ellipse(it.x,y,rr,rr*0.72,0,0,TAU);
+  ctx.lineWidth=Math.max(2,S*0.09);
+  ctx.strokeStyle='rgba(255,211,92,'+(0.42+p*0.46).toFixed(3)+')'; ctx.stroke();
+  /* and a chevron ABOVE the head, so it reads from the far side of the room
+     rather than only once you are already looking at the right ingredient. The
+     first version sat at 1.58× and landed mid-sprite, where it was lost against
+     whatever was standing behind. */
+  const ty=y-S*2.45-p*S*0.20, tk=Math.max(4,S*0.30);
+  ctx.beginPath();
+  ctx.moveTo(it.x-tk,ty-tk*0.85); ctx.lineTo(it.x,ty); ctx.lineTo(it.x+tk,ty-tk*0.85);
+  ctx.lineWidth=Math.max(1.8,S*0.11); ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.strokeStyle=INK; ctx.stroke();
+  ctx.lineWidth=Math.max(1.1,S*0.055);
+  ctx.strokeStyle='#FFD35C'; ctx.stroke();
+}
 function drawPotMarks(){
   /* one overlay pass so the three invisible states become visible:
      what is cooking, what is about to escape, what is about to be thrown out. */
@@ -5472,74 +6275,30 @@ function drawRoom(){
   wg.addColorStop(0,A.room); wg.addColorStop(1,mix(A.room,A.room2,0.30));
   ctx.fillStyle=wg; ctx.fillRect(-2,-2,W+4,HZ+4);
 
-  /* the batterie de cuisine: a proper rail with brackets, and things that
-     read as kitchen tools rather than four black semicircles. */
-  const hy=Math.max(R*0.22,HZ-R*0.62), rx0=cx+R*1.15, rx1=cx+R*2.60;
-  ctx.lineCap='round';
-  for(const bx2 of [rx0,rx1]){                 // wall brackets
-    ctx.beginPath(); ctx.moveTo(bx2,hy-R*0.16); ctx.lineTo(bx2,hy+R*0.05);
-    ctx.lineWidth=Math.max(3,R*0.022); ctx.strokeStyle=INKR; ctx.stroke();
-    rimStroke(R*0.4,0.22);
-  }
-  ctx.beginPath(); ctx.moveTo(rx0,hy); ctx.lineTo(rx1,hy);
-  ctx.lineWidth=Math.max(3,R*0.020); ctx.strokeStyle=INKR; ctx.stroke();
-  ctx.lineWidth=Math.max(1.6,R*0.009);
-  ctx.strokeStyle=`rgba(${hex(A.flame[0]).join(',')},0.24)`; ctx.stroke();
+  /* ── THE WALL IS EMPTY ON PURPOSE ────────────────────────────────────────
+     The batterie de cuisine — a rail with brackets, a pan, a ladle, a bundle of
+     herbs, a colander — and a shelf of five jars used to hang here. Both are
+     gone, because the wall is where the record of your runs goes (#18): one
+     framed picture per finished run, which is the same information as `runNo`
+     except you live in it instead of reading it.
 
-  const hang=['pan','ladle','herbs','colander'];
-  for(let i=0;i<hang.length;i++){
-    const px=rx0+(rx1-rx0)*((i+0.6)/hang.length), s2=R*0.30;
-    const sway=Math.sin(T*0.9+i*1.7)*0.035;
-    ctx.save(); ctx.translate(px,hy); ctx.rotate(sway);
-    ctx.beginPath(); ctx.arc(0,R*0.045,R*0.032,Math.PI*0.15,Math.PI*0.85);  // hook
-    ctx.lineWidth=Math.max(2,R*0.013); ctx.strokeStyle=INKR; ctx.stroke();
-    const k=hang[i];
-    if(k==='pan'||k==='colander'){
-      ctx.beginPath();                          // a shallow pan, seen face on
-      ctx.arc(0,s2*0.62,s2*0.46,0,TAU);
-      ctx.fillStyle=INKR; ctx.fill(); rimStroke(s2,0.30);
-      ctx.beginPath();                          // its handle, off to the side
-      ctx.moveTo(s2*0.42,s2*0.46); ctx.lineTo(s2*1.20,s2*0.06);
-      ctx.lineWidth=Math.max(3,s2*0.13); ctx.strokeStyle=INKR; ctx.stroke();
-      rimStroke(s2,0.24);
-      if(k==='colander') for(let h=0;h<5;h++){   // holes
-        const a2=h/5*TAU;
-        ctx.beginPath();
-        ctx.arc(Math.cos(a2)*s2*0.20, s2*0.62+Math.sin(a2)*s2*0.20, s2*0.055,0,TAU);
-        ctx.fillStyle=`rgba(${hex(A.flame[0]).join(',')},0.30)`; ctx.fill();
-      }
-    } else if(k==='ladle'){
-      ctx.beginPath();
-      ctx.moveTo(0,s2*0.10); ctx.lineTo(0,s2*0.86);
-      ctx.lineWidth=Math.max(3,s2*0.12); ctx.strokeStyle=INKR; ctx.stroke();
-      rimStroke(s2,0.24);
-      ctx.beginPath(); ctx.arc(0,s2*0.92,s2*0.28,0,Math.PI);
-      ctx.fillStyle=INKR; ctx.fill(); rimStroke(s2,0.30);
-    } else {                                     // a bundle of herbs, tied
-      ctx.beginPath();
-      ctx.moveTo(-s2*0.10,s2*0.10); ctx.lineTo(s2*0.10,s2*0.10);
-      ctx.lineTo(s2*0.16,s2*0.30); ctx.lineTo(-s2*0.16,s2*0.30); ctx.closePath();
-      ctx.fillStyle=INKR; ctx.fill(); rimStroke(s2,0.26);
-      for(let b=-2;b<=2;b++){
-        ctx.beginPath(); ctx.moveTo(b*s2*0.05,s2*0.30);
-        ctx.quadraticCurveTo(b*s2*0.24,s2*0.62,b*s2*0.20,s2*0.96);
-        ctx.lineWidth=Math.max(2,s2*0.09); ctx.strokeStyle=INKR; ctx.stroke();
-        rimStroke(s2,0.18);
-      }
-    }
-    ctx.restore();
-  }
-  // a shelf of jars
-  const sy=Math.max(R*0.16,HZ-R*1.10);
-  ctx.beginPath(); ctx.rect(cx+R*1.20,sy,R*1.60,R*0.055);
-  ctx.fillStyle=INKR; ctx.fill(); rimStroke(R*0.4,0.24);
-  for(let i=0;i<5;i++){
-    const px=cx+R*(1.32+i*0.31), h2=R*(0.18+(i%3)*0.055), w2=R*0.10;
-    ctx.beginPath(); ctx.rect(px-w2/2,sy-h2,w2,h2);
-    ctx.fillStyle=INKR; ctx.fill(); rimStroke(R*0.3,0.24);
-    ctx.beginPath(); ctx.rect(px-w2*0.32,sy-h2-R*0.03,w2*0.64,R*0.03);
-    ctx.fillStyle=INKR; ctx.fill(); rimStroke(R*0.2,0.20);
-  }
+     Two things went with them:
+
+       · the jar shelf's OFF-FRAME BUG (#10). It clamped its board to R*0.16
+         while its jars stood R*0.29 tall, so the tallest jar's top landed 33px
+         above the frame on a 1960x930 window, 26 on 1440x900 and 38 on an
+         ultrawide. Measured in walls.html. Fixed here by deletion, which is the
+         cheapest fix there is and the only one that was ever going to be right —
+         the clamp protected the shelf and not the things standing on it.
+       · about seventy lines of drawing that were identical on run 1 and run 40,
+         which is the whole argument: the surface a player stares at for
+         twenty-four minutes was saying nothing.
+
+     THE FLOOR PROPS STAY, and that is not laziness. The barrels, sacks, crates
+     and buckets in PROPS are SOLID — the crowd pushes off them in the flocking
+     pass ("the barrels and sacks are solid"), so they are pathing as much as
+     scenery and pulling them would change how the room moves, not just how it
+     looks. That is its own piece of work, and #18 carries it. */
 
   // ── the deck: side walls first, so the floor sits between them
   ctx.fillStyle=mix(A.room,'#000000',0.45);
@@ -5677,6 +6436,7 @@ function draw(under){
   for(const it of held) drawItem(it,false);
   drawBuffThreads();
   drawHealth();
+  drawWanted();
   drawShouts();
   if(actT>0.01){
     const a=actT<0.22?actT/0.22:Math.min(1,(1-actT)*4.5);
@@ -5774,6 +6534,47 @@ function draw(under){
     ctx.fillText(txt, cx, H-fs7*1.25);
     ctx.restore();
   }
+  /* ── THE FRAME METER, drawn last so it sits over everything (#25) ──────────
+     Top-right, under the buttons, in the debug register. Green under 16.7ms,
+     amber to 33.3, red past it — so the answer is a colour before it is a
+     number. Particle counts alongside, because the whole question is whether
+     they are what is costing the time. */
+  if(PERF&&pfFilled>4){
+    const fs8=Math.round(Math.max(11,R*0.052));
+    const dM=pfStat(pfDraw,0.5), dP=pfStat(pfDraw,0.95);
+    const fM=pfStat(pfFrame,0.5), fP=pfStat(pfFrame,0.95);
+    const rows=[
+      ['draw  med',dM.toFixed(2)+'ms',dM],
+      ['draw  p95',dP.toFixed(2)+'ms',dP],
+      ['frame med',fM.toFixed(2)+'ms',fM],
+      ['frame p95',fP.toFixed(2)+'ms',fP],
+      ['fps  ~',fM>0.01?(1000/fM).toFixed(0):'—',0],
+      ['sparks',String(sparks.length)+'/'+SPARK_MAX,0],
+      ['coins',String(coins.length)+'/'+COIN_MAX,0],
+      ['floats',String(floats.length)+'/'+FLOAT_MAX,0],
+      ['in pot',String(items.length),0],
+    ];
+    ctx.save();
+    ctx.font='700 '+fs8+'px ui-monospace,Menlo,monospace';
+    const bw=fs8*11.4, bh=fs8*1.45*rows.length+fs8*1.2;
+    const bx=W-bw-Math.max(10,W*0.012), byy=Math.max(10,H*0.012)+fs8*4.6;
+    ctx.beginPath(); ctx.rect(bx,byy,bw,bh);
+    ctx.fillStyle='rgba(12,8,14,.86)'; ctx.fill();
+    ctx.lineWidth=2; ctx.strokeStyle='#3A5A3A'; ctx.stroke();
+    let ry8=byy+fs8*1.5;
+    ctx.textAlign='left'; ctx.fillStyle='#6E8A6E';
+    ctx.fillText('FRAME  [P]',bx+fs8*0.6,ry8); ry8+=fs8*1.45;
+    for(const [k8,v8,ms] of rows){
+      ctx.textAlign='left'; ctx.fillStyle='#7E8A82';
+      ctx.fillText(k8,bx+fs8*0.6,ry8);
+      ctx.textAlign='right';
+      ctx.fillStyle = ms<=0 ? '#C9C2B4'
+                    : ms<16.7 ? '#8ED96A' : ms<33.3 ? '#FFD35C' : '#FF8FA0';
+      ctx.fillText(v8,bx+bw-fs8*0.6,ry8);
+      ry8+=fs8*1.45;
+    }
+    ctx.restore();
+  }
   if(devNoteT>0.01){
     const fs6=Math.round(Math.max(12,R*0.070));
     ctx.save(); ctx.globalAlpha=Math.min(1,devNoteT*1.6);
@@ -5799,19 +6600,87 @@ function draw(under){
     ctx.lineWidth=Math.max(1.5,(w.big?7:3.5)*(1-t));
     ctx.strokeStyle=`rgba(255,255,255,${(1-t)*(w.big?0.55:0.4)})`; ctx.stroke();
   }
-  for(const s of sparks){
-    const a=s.life*.95, sz=1.6+s.life*2.2;
-    ctx.fillStyle=s.c?`rgba(${hex(s.c).join(',')},${a})`:`rgba(255,232,170,${a})`;
-    ctx.fillRect(s.x-sz/2,s.y-sz/2,sz,sz);
+  /* ── SPARKS AND COINS, BATCHED BY STYLE ─────────────────────────────────
+     These two were 77% of the frame at a near-maxed tree (#25), and almost
+     none of it was the drawing — it was the STYLE. Both loops set fillStyle
+     once per particle, and `=fillStyle` was the single busiest operation in the
+     frame at 23,081 assignments: every one a CSS colour string the renderer had
+     to build and the browser had to parse. The spark loop was the worst of it,
+     re-parsing a per-spark constant with `hex()` sixty times a second.
+
+     Alpha and size are functions of `life`/`t` alone, so particles that share a
+     colour and a life bucket share a style exactly. Bucket them, set the style
+     once per bucket, and put every particle in ONE path — which is both fewer
+     calls and the shape a canvas implementation is fastest at.
+
+     What is given up: alpha and spark size quantise to eight steps over a
+     particle's ~0.5s life instead of being continuous. On a 2-4px mote that is
+     not a visible change. COIN GEOMETRY IS UNTOUCHED — only its style is
+     bucketed, so the coins keep their exact per-coin radius and position.
+     The buckets are module-level and reused, so a frame allocates nothing. */
+  if(sparks.length){
+    /* SPARKB is grown on demand and is therefore SPARSE — a bucket only exists
+       once a spark has landed in it, so the holes have to be skipped rather than
+       assumed away. (The first version did `b.length=0` on every slot and died
+       on the first hole.) */
+    for(const b of SPARKB) if(b) b.length=0;
+    for(const s of sparks){
+      const q=s.life<=0?0:s.life>=1?SPARKQ-1:(s.life*SPARKQ)|0;
+      /* the colour index is resolved ONCE per spark, not once per frame — a
+         spark's colour never changes, and an indexOf per particle per frame is
+         the same mistake as the hex() parse this pass exists to remove. */
+      let ci=s.ci;
+      if(ci===undefined){
+        ci=SPARKC.indexOf(s.c||'');
+        if(ci<0){ ci=SPARKC.length; SPARKC.push(s.c||''); }
+        s.ci=ci;
+      }
+      const key=ci*SPARKQ+q;
+      let arr=SPARKB[key];
+      if(!arr) arr=SPARKB[key]=[];
+      arr.push(s.x,s.y);
+    }
+    for(let k=0;k<SPARKB.length;k++){
+      const arr=SPARKB[k]; if(!arr||!arr.length) continue;
+      const q=k%SPARKQ, col=SPARKC[(k-q)/SPARKQ];
+      const life=(q+0.5)/SPARKQ, a=life*0.95, sz=1.6+life*2.2, h=sz/2;
+      ctx.fillStyle = col ? rgba(col,a) : 'rgba(255,232,170,'+a+')';
+      ctx.beginPath();
+      for(let i=0;i<arr.length;i+=2) ctx.rect(arr[i]-h,arr[i+1]-h,sz,sz);
+      ctx.fill();
+    }
   }
   // coins, on their way to the purse
-  for(const c of coins){
-    const t=c.t, a=t<0.9?1:1-(t-0.9)/0.1, rr=Math.max(3.5,R*0.030)*(1-t*0.35);
-    ctx.beginPath(); ctx.arc(c.x,c.y,rr,0,TAU);
-    ctx.fillStyle=`rgba(255,211,92,${a})`; ctx.fill();
-    ctx.lineWidth=2.4; ctx.strokeStyle=`rgba(26,17,22,${a})`; ctx.stroke();
-    ctx.beginPath(); ctx.arc(c.x-rr*0.3,c.y-rr*0.3,rr*0.3,0,TAU);
-    ctx.fillStyle=`rgba(255,248,220,${a*0.9})`; ctx.fill();
+  if(coins.length){
+    for(const b of COINB) b.length=0;
+    for(const c of coins){
+      const t=c.t, a=t<0.9?1:1-(t-0.9)/0.1;
+      const q=a<=0?0:a>=1?COINQ-1:(a*COINQ)|0;
+      COINB[q].push(c.x,c.y,Math.max(3.5,R*0.030)*(1-t*0.35));
+    }
+    ctx.lineWidth=2.4;                       // the same for every coin, ever
+    for(let q=0;q<COINQ;q++){
+      const arr=COINB[q]; if(!arr.length) continue;
+      const a=(q+0.5)/COINQ;
+      // the bodies: one path, one fill, one stroke
+      ctx.beginPath();
+      for(let i=0;i<arr.length;i+=3){
+        const x=arr[i],y=arr[i+1],rr=arr[i+2];
+        ctx.moveTo(x+rr,y); ctx.arc(x,y,rr,0,TAU);
+      }
+      ctx.fillStyle=COINF[q]; ctx.fill();
+      ctx.strokeStyle=COINS_[q]; ctx.stroke();
+      // and the glints
+      ctx.beginPath();
+      for(let i=0;i<arr.length;i+=3){
+        const x=arr[i],y=arr[i+1],gr=arr[i+2]*0.3;
+        /* the glint sits up-left by its own radius, so angle 0 on that circle
+           lands back at x — hence moveTo(x, …) before the arc, which is what
+           keeps each coin a separate subpath instead of a chain of them. */
+        ctx.moveTo(x,y-gr); ctx.arc(x-gr,y-gr,gr,0,TAU);
+      }
+      ctx.fillStyle=COING[q]; ctx.fill();
+    }
   }
 
   drawFlyingLogs();
@@ -6053,7 +6922,16 @@ function paintTree(){
     const vis=shown(u), maxed=lv[u.id]>=u.max, c=cost(u), can=broth>=c;
     const cls='node'+(!vis?' locked':maxed?' maxed':can?' afford':' poor');
     if(b.className!==cls) b.className=cls;
-    const dis=!vis||maxed||!can;
+    /* DISABLED ONLY FOR THE STABLE REASONS. Affordability flips on every
+       repaint as broth moves, and a button disabled between your finger landing
+       and the click arriving EATS the click — the tap is not lost, it is
+       answered by a disabled button. buy() re-validates all three conditions
+       anyway (`!shown || maxed || broth<cost`), so `disabled` was never the
+       guard, only the signal, and the signal already lives in the .poor/.afford
+       class. A node you cannot yet afford now takes the tap and does nothing,
+       which is also better for a keyboard: it stays focusable and still reads
+       out its price. */
+    const dis=!vis||maxed;
     if(b.disabled!==dis) b.disabled=dis;
     setTxt(b._t, vis?u.n:'???');
     setTxt(b._l, vis?(maxed?'MAX':lv[u.id]+' / '+u.max):'');
@@ -6091,6 +6969,89 @@ openup.onclick=()=>{
   setTree(true);
 };
 document.getElementById('closeup').onclick=()=>setTree(false);
+
+/* ── THE REPUTATION VIEW ──────────────────────────────────────────────────────
+   Built once, painted on open, exactly as the tree does it: paintLegacy only ever
+   writes textContent and className, because rebuilding innerHTML under a button
+   destroys the element the click is travelling to and the browser then never
+   fires it. That bug is written up on buildTree() and it is the same bug here. */
+let legOpen=false;
+const legEl=document.getElementById('legacy');
+const legInner=document.getElementById('leginner');
+const legNodeEl={};
+function buildLegacy(){
+  if(!legInner) return;
+  const why=document.createElement('p'); why.id='legwhy';
+  why.textContent='Stars come from chef levels, and a run can neither earn them '+
+    'nor take them away. What you buy here is waiting in the next pot: a head '+
+    'start, never a skip.';
+  legInner.appendChild(why);
+  for(const n of LEG){
+    const b=document.createElement('button');
+    b.className='node'; b.dataset.id=n.id;
+    b.innerHTML='<span class="nn"><span class="t"></span><i></i></span>'+
+                '<span class="nd"></span><span class="nw"></span>'+
+                '<span class="nfoot"><span class="nc"><i class="dot"></i>'+
+                '<span class="v"></span></span></span>'+
+                '<span class="nbar"><i></i></span>';
+    b._t=b.querySelector('.nn .t'); b._l=b.querySelector('.nn i');
+    b._d=b.querySelector('.nd');    b._v=b.querySelector('.nc .v');
+    b._w=b.querySelector('.nw');
+    b._bar=b.querySelector('.nbar i');
+    b.onclick=()=>legBuy(n);
+    legInner.appendChild(b); legNodeEl[n.id]=b;
+  }
+  paintLegacy();
+}
+function paintLegacy(){
+  const st=document.getElementById('stars2');
+  if(st) setTxt(st,String(chefStars));
+  const ml=document.getElementById('ml');
+  if(ml) setTxt(ml, chefStars ? chefStars+' star'+(chefStars>1?'s':'')+' to spend'
+                              : legSpent() ? 'spent: '+legSpent()+' stars'
+                              : 'nothing to spend yet');
+  const badge=document.getElementById('legbadge');
+  if(badge){ badge.hidden=!chefStars; badge.textContent=String(chefStars); }
+  for(const n of LEG){
+    const b=legNodeEl[n.id]; if(!b) continue;
+    const l=leg[n.id], maxed=l>=n.max, can=chefStars>=legCost(n);
+    const cls='node'+(maxed?' maxed':can?' afford':' poor');
+    if(b.className!==cls) b.className=cls;
+    if(b.disabled!==maxed) b.disabled=maxed;   // same reasoning as the tree
+    setTxt(b._t,n.n);
+    setTxt(b._l,maxed?'MAX':l+' / '+n.max);
+    /* WHAT YOU GET FOR THE STAR, always. This used to print the flavour line
+       until you owned a level, so an unbought node told you it was "laid out
+       before you arrive" and nothing about what that bought — you were being
+       asked to spend a currency you cannot re-earn on an unlabelled box. Now it
+       reads the NEXT level's effect, with the current one alongside once there
+       is one to compare against. */
+    /* the NEXT level's effect, because that is what the star buys. Printing
+       current → next repeated the whole sentence twice for one changed number,
+       and the level counter and the bar already say where you are. */
+    setTxt(b._d, maxed ? n.d(l) : (l?'next · ':'')+n.d(l+1));
+    setTxt(b._w, n.w);
+    setTxt(b._v,maxed?'DONE':'★ '+legCost(n));
+    b._bar.style.width=(l/n.max*100)+'%';
+  }
+}
+function setLegacy(v){
+  legOpen=v; legEl.classList.toggle('on',v);
+  legEl.setAttribute('aria-hidden',String(!v));
+  if(v) paintLegacy();
+}
+document.getElementById('legbtn').onclick=()=>{
+  if(dragging){ dragging=false; ptr.down=false; ptr.mode=null;
+    for(const it of held) it.st='loose'; held=[];
+    document.body.classList.remove('drag'); }
+  setLegacy(true);
+};
+document.getElementById('closeleg').onclick=()=>setLegacy(false);
+/* the pill is the shortest path from "you have a star" to "spend it" — which is
+   the whole reason it is a button and not a caption. */
+{ const sp=document.getElementById('chstars');
+  if(sp) sp.onclick=()=>{ setMenu(false); setLegacy(true); }; }
+addEventListener('keydown',e=>{ if(legOpen&&e.key==='Escape') setLegacy(false); });
 addEventListener('keydown',e=>{
   if(e.key==='Escape'){ setTree(false); setCodex(false); setGuests(false); setDbg(false); setMenu(false); setAch(false); }
 });
@@ -6127,7 +7088,14 @@ function frame(now){
     if(bookOpen||cardOpen||tilted||restartOpen){ last=now; acc=0; }
     acc+=Math.min(.25,(now-last)/1000); last=now;
     while(acc>=STEP){ lastU=step(STEP); acc-=STEP; }
-    draw(lastU);
+    /* the meter brackets draw() only, so the readout separates the thing #25
+       changed from everything else in the frame. */
+    if(PERF){
+      const t0=performance.now();
+      draw(lastU);
+      const t1=performance.now();
+      pfPush(t1-t0, pfPrev?t1-pfPrev:0); pfPrev=t1;
+    } else draw(lastU);
     if(codexOpen) drawCodex();      // after draw(), so ctx is handed back clean
     if(guestsOpen) drawGuests();    // same rule: it borrows ctx and returns it
     if(dbgOpen) paintDbg();         // DOM only — the readouts, not the canvas
@@ -6223,6 +7191,11 @@ addEventListener('keydown',e=>{
     devNoteT=1; return;
   }
   /* V — cycle the flavour tint: full, hint, off. */
+  if(e.key==='p'||e.key==='P'){
+    PERF=!PERF; pfI=0; pfFilled=0; pfPrev=0;
+    devNote='FRAME METER '+(PERF?'ON':'OFF')+'   [P]';
+    devNoteT=1; return;
+  }
   if(e.key==='v'||e.key==='V'){
     TINT = TINT>=1 ? 0.5 : TINT>0 ? 0 : 1;
     devNote='FLAVOUR TINT: '+(TINT>=1?'FULL':TINT>0?'A HINT':'OFF')+'   [V]';
@@ -6254,7 +7227,7 @@ ROSTER.slice(0,9).forEach((k,i)=>console.log('  '+(i+1)+'  '+k));
 console.log('%c  M  MAX EVERYTHING here, and press it again to PUT IT BACK'
           ,'font-weight:700');
 console.log('     maxed tree, full room, packed pot, allure 1.60, a pantheon at the hatch');
-console.log('     walk the acts at full load with the I–V buttons bottom-right');
+console.log('     walk the acts with Next/Previous act in the debug menu');
 console.log('  G  summon the awkward set: bard, ghost, taxman, kraken, garlic');
 console.log('  F  swing the fire cold/hot (the ghost is untouchable under 55%)');
 console.log('  V  flavour tint (full / hint / off)');
@@ -6273,7 +7246,63 @@ if(DEV) window.__soup={
   get lv(){return lv}, get ST(){return ST}, UP,
   get broth(){return broth}, get fire(){return fire}, get logs(){return logs},
   get served(){return servedN}, get pops(){return popCount},
+  /* --playthrough needs to know the run ended, and the cheapest-node policy
+     needs live costs. Both read-only. */
+  get runOver(){ return runOver; },
+  costOf(id){ const u=byId[id]; return u?cost(u):Infinity; },
   get smoke(){ return puffs.length; },
+  /* ── WHERE THINGS ARE, so a synthetic player can aim honestly (#2) ────────
+     The existing play script fires pointer events at hardcoded coordinates —
+     500,620 and friends — which only work at one window size and say nothing
+     about where the crowd actually is. A full playthrough has to sweep the real
+     deck, throw at the real pot and tap the real firebox across five acts that
+     each rescale everything, so it needs the geometry rather than a guess.
+     Also reports where the loose ingredients have clustered, because sweeping
+     the middle of an empty floor measures nothing. */
+  geom(){
+    let n=0, sx=0, sy=0, best=null, bestD=Infinity;
+    for(const it of items){
+      if(it.st!=='loose') continue;
+      n++; sx+=it.x; sy+=it.y;
+      /* the nearest loose thing to the pot is the cheapest first target */
+      const d=Math.hypot(it.x-cx,(it.y-by)/YS);
+      if(d<bestD){ bestD=d; best=it; }
+    }
+    return {
+      W,H, pot:{x:cx,y:by,r:BR,rTop:R,ys:YS},
+      deck:{x0:DECK.x0,y0:DECK.y0,x1:DECK.x1,y1:DECK.y1},
+      stove:A.stove?{x:cx,y:FIRE.y}:null,
+      hatch:{x:HATCH.x,y:HATCH.bottom},
+      ladle:{x:ladle.x,y:ladle.y,r:LR,lift:LIFT},
+      loose:n, mid:n?{x:sx/n,y:sy/n}:null,
+      nearest:best?{x:best.x,y:best.y,kind:best.kind}:null,
+      held:held.length, hold:ST.hold, inPot:items.filter(i=>i.st==='float'||i.st==='sunk').length,
+      swirl:swirl, logs:logs, fire:fire,
+    };
+  },
+  /* what the frame meter is showing. Exposed so a test can prove the ring
+     buffer, the percentile and the display path carry a real number rather than
+     merely failing to throw — the readout is useless if it always says 0.00. */
+  perf(){ return {on:!!PERF, n:pfFilled,
+                  drawMed:pfStat(pfDraw,0.5), drawP95:pfStat(pfDraw,0.95),
+                  frameMed:pfStat(pfFrame,0.5), frameP95:pfStat(pfFrame,0.95)}; },
+  /* ── THE PARTICLE CENSUS, for the performance study ──────────────────────
+     Matias, on a near-maxed tree: *"the scoring popups from the pot are really
+     hard for my machine to render, it stalls almost to a halt."* Four of these
+     seven arrays have NO cap — sparks, coins, pops and waves grow with the pop
+     rate, and the pop rate is what the whole tree exists to raise.
+     `clearFx` is what makes the study honest: emptying one array every frame
+     and re-measuring gives that effect's real cost by ABLATION, rather than by
+     me reading the draw code and guessing at a weight per op. */
+  fx(){ return {floats:floats.length, sparks:sparks.length, coins:coins.length,
+                pops:pops.length, waves:waves.length, puffs:puffs.length,
+                bubbles:bubbles.length, items:items.length,
+                shouts:shouts.length}; },
+  clearFx(k){
+    const m={floats,sparks,coins,pops,waves,puffs,bubbles,shouts};
+    if(!m[k]) return 'no such effect';
+    m[k].length=0; return k+' cleared';
+  },
   /* CUMULATIVE entries, split by whether it had been in before. `--escape`
      counted the pot's population at three instants, which is a snapshot of a
      fluctuating number and far too noisy to see this: a count is not a rate. */
@@ -6305,6 +7334,33 @@ if(DEV) window.__soup={
             if(it.st==='float'||it.st==='sunk'){ it.done=1.01; n++; }
           return n+' forced to the top of the pot'; },
   get order(){return diner?diner.st+' '+Math.floor(diner.got)+'/'+diner.need:'none'},
+  /* how far through the current bowl, as a fraction. --playthrough needs this to
+     tell "stuck" from "slowly winning": its first stall detector watched SERVES
+     and killed a run whose player was visibly converging on the dragon, 5.5k ->
+     24k -> 41k of 46.8k. No serves for six minutes and real progress every
+     minute are not the same state. */
+  /* progress on the CURRENT bowl, plus which bowl it is — the Council is nine
+     bowls in a row and each one resets `got`, so a fraction alone makes a
+     sitting that is visibly advancing look frozen. --playthrough's stall
+     detector needs both or it kills the run twice over. */
+  get progress(){ return diner?(diner.round||0)+Math.min(9,diner.got/Math.max(1,diner.need)):0; },
+  /* every diner's weight and patience, so `--orders` can check the one rule
+     that explains every wall the playthrough hit (#27). */
+  /* how full the tree is, as levels bought over levels available — the number
+     that says whether progression is ramping or being handed to you. */
+  treeFill(){ let got=0, all=0;
+    for(const u of UP){ got+=lv[u.id]; all+=u.max; }
+    return {levels:got, of:all, frac:got/all,
+            spent:UP.reduce((a,u)=>{ let c=0;
+              for(let i=0;i<lv[u.id];i++) c+=Math.ceil(u.base*Math.pow(u.g||GROWTH,i));
+              return a+c; },0)};
+  },
+  orders(){ return Object.keys(CAST).map(k=>{
+    const c=CAST[k];
+    return {key:k, name:c.n, w:c.w||1, pat:c.pat||Infinity,
+            rounds:c.rounds||1, last:!!c.last,
+            work:(c.w||1)*ORDER_SECS, secs:ORDER_SECS};
+  }); },
   /* satisfy EVERY rule on the current bowl, not just its volume. it used to set
      `got` and one palate minimum, which silently stopped meaning "this order is
      met" the moment diners could name an ingredient or want three profiles —
@@ -6318,7 +7374,7 @@ if(DEV) window.__soup={
             d.got=d.need;
             if(c.pal3!==undefined) flav=[1,1,1];              // nothing dominates
             else if(p&&p.max!==undefined){ flav=[1,1,1]; flav[p.ax]=0.35; }
-            if(c.req) d.kinds[c.req]=1;
+            if(d.req) d.kinds[d.req]=1;
             if(c.ban==='alive') for(const k in d.kinds) if(wasAlive(k)) delete d.kinds[k];
             return 'bowl filled'+(c.rounds?' (bowl '+(d.round+1)+' of '+c.rounds+')':''); },
   /* fill the bowl and satisfy the demands that are NOT about the pot's flavour,
@@ -6328,7 +7384,7 @@ if(DEV) window.__soup={
   fill(){ if(!diner) return 'nobody here';
           const d=diner, c=d.c;
           d.got=d.need;
-          if(c.req) d.kinds[c.req]=1;
+          if(d.req) d.kinds[d.req]=1;
           if(c.ban==='alive') for(const k in d.kinds) if(wasAlive(k)) delete d.kinds[k];
           return 'bowl full, pot untouched'; },
   /* jump to the last diner, to test the ending without a full run. sets rank to
@@ -6402,6 +7458,21 @@ if(DEV) window.__soup={
            return 'already '+diner.st; },
   open(){ return letThemIn()?'they are coming in':'nobody is knocking'; },
   seat(k){ newDiner(k); diner.st='wait'; diner.t=0; return diner.kind+' is seated'; },
+  /* the stuck diagnosis, both halves: what it WOULD say, and what it is saying.
+     `hint()` is the raw reading, `shown()` runs it through the STUCK_T gate —
+     which is the only thing the player ever sees, so it is the thing to assert
+     on. `wait(s)` pushes the clock so a test does not have to sit there for
+     twenty-five seconds of real time. */
+  hint(){ return diner?stuckHint(diner):null; },
+  shownHint(){ return hintNow(); },
+  get stuckFor(){ return diner?diner.stuck:0; },
+  stuckWait(s){ if(diner) diner.stuck=s===undefined?STUCK_T+1:s;
+                return diner?diner.stuck:0; },
+  wanted(k){ const it=wantedItem(k); return it?{kind:it.kind,st:it.st}:null; },
+  /* the two readings the cap hint is derived from, so a test can check the
+     advice against the rule rather than against a fixture. */
+  share(i){ return share(i); },
+  capsOver(){ return diner?capsOver(diner):[]; },
   give(n){ broth+=n; paintTree(); return broth; },
   buy(id){ const u=byId[id]; if(!u) return 'no such node'; const before=lv[id];
            buy(u); return before===lv[id]?'refused (locked, maxed, or too poor)':'lv '+lv[id]; },
@@ -6458,7 +7529,7 @@ if(DEV) window.__soup={
             note:A.stove?null:'this act has stove:null — no kitchen is drawn'};
   },
   reset(){ for(const u of UP) lv[u.id]=0; recalc(); drawEdges(); paintTree(); },
-  wipe(){ try{ localStorage.removeItem('greatsoup.v1'); }catch(e){} return 'reload for a clean kitchen'; },
+  wipe(){ dropSave(SAVE); return 'reload for a clean kitchen'; },
   /* A BRAND NEW GAME, right now, without a reload. `setAct(1)` already wipes
      almost everything — it is the old pre-goAct() act switch, kept precisely as
      a debug reset — so this is that plus the four things it does not know about:
@@ -6509,6 +7580,45 @@ if(DEV) window.__soup={
      directions are supposed to be worth exactly the same — `--swirl` runs one
      pot twice, mirrored, and compares. A claim about symmetry that nothing
      measures is a claim that quietly stops being true. */
+  /* THE REPUTATION, from the console and from the harness. `stars(n)` grants
+     without levelling so a test does not have to grind 40·L exp to buy a node. */
+  get chef(){ return {exp:chefExp, ...chefInfo(chefExp), stars:chefStars}; },
+  stars(n){ chefStars=Math.max(0,n===undefined?9:n); paintChef(); return chefStars; },
+  /* what the save layer decided on load, so a test can assert the refusal
+     rather than inferring it from a blob that failed to change. */
+  saveInfo(){ return {runBlocked:blocked[SAVE], metaBlocked:blocked[AMETA],
+                      runV:SAVE_V, metaV:META_V, hadRun}; },
+  /* THE ACHIEVEMENT LEDGER, from the console and from the harness. ACH is ~133
+     rows generated by tiers() and per-content loops, so the two things that can
+     go wrong are invisible from inside the game: a duplicate id, and a predicate
+     that throws. sweepAchievements() catches per-achievement, so a thrower does
+     not break the others — it simply NEVER UNLOCKS, silently, forever. Which is
+     why this is exposed: so a check can call every predicate itself and see. */
+  chefLine(){ return chefLine(); },
+  get runStart(){ resolveRunStart(); return {...runStart}; },
+  endRun(choice){ endRun(choice==='world'?'world':'pot');
+    return 'ended: '+ending; },
+  get bookPages(){ return (bookPages||[]).map(p=>({title:p.title, body:p.body})); },
+  ach:{
+    grant(id){ const a=ACH.find(x=>x.id===id); if(!a) return 'no such achievement: '+id;
+      if(EARNED.has(id)) return id+' already earned';
+      unlock(a); return 'granted '+id; },
+    reset(){ EARNED.clear(); achieved=[]; achNew=0; paintAchBadge(); saveMeta();
+      return 'the ledger is empty'; },
+    stats(){ return STATS; },
+    blank(){ return defaultStats(); },
+    list(){ return ACH; },
+    get count(){ return {total:ACH.length, earned:EARNED.size}; },
+  },
+  LEG,   // the table itself, so a test prices off it rather than hardcoding
+  get legacy(){ return {...leg, carry:legCarry, spent:legSpent(),
+                        away:{cap:awayCap(), rate:awayRate()}, cards:cardsPerRun()}; },
+  legBuy(id){ const n=legBy[id]; if(!n) return 'no such node: '+id;
+    return legBuy(n) ? id+' -> '+leg[id] : 'cannot buy '+id+
+      ' (need '+legCost(n)+', have '+chefStars+', at '+leg[id]+'/'+n.max+')'; },
+  legReset(){ for(const n of LEG) leg[n.id]=0; legCarry=0; saveMeta();
+    paintLegacy(); recalc(); return 'reputation cleared'; },
+  applyLegacy(){ applyLegacy(); return 'applied'; },
   stir(v){ swirl=clamp(v===undefined?0.6:v,-1,1); return swirl; },
   get swirl(){ return swirl; },
   /* CLEAR THE KITCHEN AND RESTOCK IT. `reset()` only puts the upgrade tree
@@ -6654,6 +7764,9 @@ const DBG=[
   {k:'L', n:'Ladle lift', f:()=>{ LIFT = LIFT<=0?22:LIFT<30?40:0; },
    val:()=>LIFT?LIFT+'px above':'under your hand',
    d:'How far above the pointer the ladle rides, so the broth you are reading is not under your own hand. 0 is where it used to be. The stove and hatch tap targets are unaffected — only the tool moves.'},
+  {k:'P', n:'Frame meter', f:()=>{ PERF=!PERF; pfI=0; pfFilled=0; pfPrev=0; },
+   val:()=>PERF?'on':'off',
+   d:'Milliseconds, median and p95, for draw() and for the whole frame — plus the live particle counts. p95 is the one to watch: a stall is a long tail, and a mean hides it. 16.7ms is 60fps, 33.3ms is 30.'},
   {k:'V', n:'Flavour tint', f:()=>{ TINT = TINT>=1?0.5:TINT>0?0:1; },
    val:()=>TINT>=1?'full':TINT>0?'a hint':'off',
    d:'A pool of colour on the floor under each loose ingredient — sweet, bitter, umami. The crowd huddles by kind, so clumps read as one colour and sweeping a clump becomes a visible choice. First pass; easy to remove.'},
@@ -6740,6 +7853,10 @@ document.getElementById('dbgclose').onclick=()=>setDbg(false);
 if(!DEV) for(const id of ['dbgbtn','guestbtn']){
   const el=document.getElementById(id); if(el) el.remove();
 }
+/* and the codex's hint only appears when the thing it advertises does. It ships
+   `hidden` rather than being shown-then-hidden, so a slow first paint cannot
+   flash a dev instruction at a player. */
+if(DEV){ const h=document.getElementById('cxhint'); if(h) h.hidden=false; }
 
 /* ═════════════════════════════════════════════════════════════
    THE MENU.  Four buttons of chrome for four things you consult occasionally
@@ -6777,7 +7894,7 @@ addEventListener('pointerdown',e=>{
   if(menuEl.contains(e.target)||menuBtn.contains(e.target)) return;
   setMenu(false);
 },true);
-for(const id of ['guestbtn','codexbtn','bookbtn','achbtn']){
+for(const id of ['guestbtn','codexbtn','bookbtn','achbtn','legbtn']){
   const el=document.getElementById(id);
   if(el) el.addEventListener('click',()=>setMenu(false));
 }
@@ -6798,7 +7915,8 @@ function newGame(){
   achRunReset(); runNo++;            // a fresh run for the ledger; achievements persist
   runOver=false; ending=null; endT=0; endBroth=0; backs=0; afterBook=null;  // clear any ended run
   setAct(1); goAct(1);               // levels, broth, flavour, rank, cards, dex
-  earnEMA=0; earnWin=0; earnT=0; combo=0; comboT=0; dive=null; popRate=0;
+  applyLegacy();                     // and then the reputation gives it back
+  earnEMA=0; earnWin=0; earnPeak=0; earnT=0; combo=0; comboT=0; dive=null; popRate=0;
   floats=[]; shouts=[]; coins=[]; waves=[]; pops=[]; sparks=[]; puffs=[];
   /* re-arm the first-run things, or "new game" quietly means "new except the
      parts that only ever happen once" — exactly the parts worth seeing again. */
@@ -6806,7 +7924,7 @@ function newGame(){
   dexNew=0; dexToast=null;
   throwNote=0; scaldNote=0; crowdNote=0; devNoteT=0;
   paintDexBadge(); paintTree(); drawEdges();
-  try{ localStorage.removeItem('greatsoup.v1'); }catch(e){}
+  dropSave(SAVE);
   setTree(false); setCodex(false); setGuests(false); setDbg(false); setMenu(false); setRestart(false);
   setBook(true,0);                   // and the cookbook opens, as it would on a first run
 }
@@ -7239,9 +8357,17 @@ function buildCodex(){
        the deck and closes the book, which makes the rare awkward ones (bard,
        ghost, taxman, kraken) testable in two clicks instead of by waiting for
        the act pool to roll them. unmet entries work too; that is the point. */
-    el.style.cursor='pointer';
-    el.title='summon three';
-    el.onclick=()=>{ summon(k,3); setCodex(false); };
+    /* DEV ONLY. The codex itself is the player's encyclopedia and stays; what is
+       a TOOL is the click that spawns three. Ungated, a shipped build let anyone
+       open Ingredients and drop three `city` — richness 8000 — into act 1, where
+       an order is a few hundred. That is not an exploit, it is the economy.
+       Third instance of this exact leak: the I–V act strip was the second, and
+       --ship reported "no dev surface exposed" over both. */
+    if(DEV){
+      el.style.cursor='pointer';
+      el.title='summon three';
+      el.onclick=()=>{ summon(k,3); setCodex(false); };
+    }
     host.appendChild(el);
     codexCards.push({kind:k, c:el.querySelector('canvas'), cooked, seen});
   }
@@ -7356,9 +8482,12 @@ function buildGuests(){
         '<b class="nm">'+c.n+'</b>'+
         (c.say?'<div class="sy">“'+c.say+'”</div>':'')+
         '<div class="st">'+
-          '<span>bowl<b>'+fmt(c.base)+'</b></span>'+
-          '<span>grows<b>×'+c.grow.toFixed(1)+' / act</b></span>'+
-          '<span>at act 5<b>'+fmt(c.base*Math.pow(c.grow,4))+'</b></span>'+
+          /* the bowl is derived now, not authored — so show the weight, what it
+             comes to at the CURRENT cooking rate, and how long that is. `base`
+             and `grow` are gone; see orderSize(). */
+          '<span>weight<b>×'+(c.w||1).toFixed(2)+'</b></span>'+
+          '<span>bowl now<b>'+fmt(orderSize(c))+'</b></span>'+
+          '<span>that is<b>'+Math.round(ORDER_SECS*(c.w||1))+'s of work</b></span>'+
         '</div>'+
         '<div class="tg">'+RULE(c).map(t=>'<em'+(t.hard?' class="hard"':'')+'>'+t.s+'</em>').join('')+'</div>'+
       '</div>';
@@ -7439,7 +8568,9 @@ const cardEl=document.getElementById('card');
 /* WHICH CARDS YOU HAVE BEEN DEALT.  indices, not keys — `chosen` records the
    side you picked, this records the question you were asked. */
 let dealt=[];
-const CARDS_PER_RUN=4;                   // one per act change: 1→2, 2→3, 3→4, 4→5
+const CARDS_PER_RUN=4;   // one per act change: 1→2, 2→3, 3→4, 4→5.
+/* Full Menu raises it, so anything player-facing reads cardsPerRun() and this
+   is the base. */
 function openCard(){
   /* DRAWN, not walked.  a card arrives on each act change, so a run sees four
      of the nine — and it used to take `CARDS[chosen.length]`, which meant those
@@ -7454,7 +8585,7 @@ function openCard(){
   dealt.push(idx);
   cardOpen=true; cardEl.classList.add('on'); cardEl.setAttribute('aria-hidden','false');
   document.getElementById('ckick').textContent='Recipe card '+dealt.length+
-    ' of '+CARDS_PER_RUN+' · act '+act;
+    ' of '+cardsPerRun()+' · act '+act;
   document.getElementById('cq').textContent='\u201c'+c.q+'\u201d';
   for(const [id,o] of [['ca',c.a],['cb',c.b]]){
     const b=document.getElementById(id);
@@ -7494,6 +8625,7 @@ function openEndingCard(){
 function endRun(choice){
   closeCard();
   runOver=true; ending=choice; endBroth=broth;
+  legBank();                         // Deep Pockets keeps a cut of the pour
   achEndRun(choice);
   if(STATS.run.noSendBack) grantManual('clean-run');  // read before the run resets
   sweepAchievements();                                // land the finish medals with the epilogue
@@ -7535,6 +8667,7 @@ function openEpilogue(){
       'Ingredients written up: <em>'+cooked+' of '+kinds+'</em>.',
       'The pot, at the end, was worth <em>'+fmt(endBroth)+'</em> broth — '+
         (ending==='world'?'and you gave every drop of it to the pot.':'and you gave every drop of it away.'),
+      chefLine(),
     ]};
   const her = { art:'pot', cap:'the last diner · she was always here',
     kick:'The last page', title:'Mother Stock', body:[
@@ -7552,7 +8685,7 @@ function newRun(){
   runOver=false; ending=null; endT=0; endBroth=0; backs=0; afterBook=null;
   achRunReset(); runNo++;                 // the next run, for the ledger
   const keepSeen={...dexSeen}, keepCooked={...dexCooked};
-  try{ localStorage.removeItem(SAVE); }catch(e){}
+  dropSave(SAVE);
   setAct(1);
   dexSeen=keepSeen; dexCooked=keepCooked;
   save();
@@ -7682,7 +8815,25 @@ function achSecond(){ if(preMax) return;
      is busy, capped per run so a marathon idle cannot dominate the milestones. */
   const cap=120, e=STATS.run.expTick||0;
   if(e<cap){ const dn=Math.min(cap-e, popRate>0.01?0.25:0.05); STATS.run.expTick=e+dn; addExp(dn); } }
-function achRunReset(){ STATS.run={ serves:0, sendBacks:0, noSendBack:true, brothPeak:0, kinds:{}, expTick:0 }; }
+function achRunReset(){ STATS.run={ serves:0, sendBacks:0, noSendBack:true, brothPeak:0, kinds:{}, expTick:0 };
+  runStart={ exp:chefExp, lv:chefInfo(chefExp).lv, stars:chefStars };
+}
+/* WHAT THE CHEF LOOKED LIKE WHEN THIS RUN BEGAN. The EXP bar shows a state; the
+   epilogue is the one moment that can show a DELTA — "this run got you here" —
+   which is the whole emotional job of a run-based meta loop. Nothing was
+   recording it, so the tally could only ever report the run's own numbers and
+   never what the run EARNED. Snapshotted where the run resets, so it cannot
+   drift from what achRunReset() considers a run. */
+/* NULL until something establishes it, which matters: a RESUMED run must not be
+   told it earned everything the chef has ever earned. Left at {exp:0} a returning
+   player with 500 exp would read "you are worth 500 more than when you started",
+   which is a lie the size of their whole history. So it rides the per-run save,
+   and a save without it (or a cold start) resolves to the chef's state at load —
+   reporting nothing gained rather than inventing a figure. */
+let runStart=null;
+function resolveRunStart(){
+  if(!runStart) runStart={ exp:chefExp, lv:chefInfo(chefExp).lv, stars:chefStars };
+}
 
 /* ═════════════════════════════════════════════════════════════
    CHEF EXP — the bar that always climbs (CHEF.md §1). A second meter, decoupled
@@ -7712,10 +8863,42 @@ function chefToast(lv){
     '<div class="bl">+1 star for the reputation.</div></div>';
   wrap.appendChild(el); el.addEventListener('animationend',()=>el.remove());
 }
+/* THE ONE LINE THE EPILOGUE OWES YOU. Deltas, not states: the bar already shows
+   where you are, and only this page can show what the soup was worth to the
+   chef. Reads as prose rather than a table because every other page of the book
+   does, and a tally of three sentences should not suddenly become a receipt. */
+function chefLine(){
+  resolveRunStart();
+  const now=chefInfo(chefExp);
+  const gained=Math.max(0,Math.round(chefExp-runStart.exp));
+  const levels=Math.max(0,now.lv-runStart.lv);
+  const stars=Math.max(0,chefStars-runStart.stars);
+  if(!gained&&!levels&&!stars)
+    return 'The chef is no wiser than when you started, which takes some doing.';
+  const bits=['You are worth <em>'+gained+'</em> more than when you started'];
+  if(levels) bits.push('which is <em>'+levels+' level'+(levels>1?'s':'')+
+    '</em>, and leaves you at <em>'+now.lv+'</em>');
+  /* the stars are the part that outlives the run, so they get the last word and
+     the sentence says where they go — a currency with no named sink reads as a
+     number rather than as a prize. */
+  if(stars) bits.push('<em>'+stars+' star'+(stars>1?'s':'')+
+    '</em> for the reputation'+(chefStars!==stars?', '+chefStars+' unspent':''));
+  return bits.join(' — ')+'.';
+}
 function paintChef(){
   const i=chefInfo(chefExp);
   const l=document.getElementById('chlv'); if(l) l.textContent='Lv '+i.lv+(chefStars?'  ·  ★'+chefStars:'');
   const f=document.getElementById('chfill'); if(f) f.style.width=(i.into/i.need*100).toFixed(1)+'%';
+  /* THE STAR PILL. It was markup and CSS with nothing writing to it, so it
+     printed 0 whatever you had — caught by looking at it, not by any check. */
+  const sp=document.getElementById('chstars');
+  if(sp){
+    sp.hidden=!chefStars;
+    const b=sp.querySelector('b'); if(b) setTxt(b,String(chefStars));
+    const em=sp.querySelector('em');
+    if(em) setTxt(em, chefStars>1?'to spend':'to spend');
+  }
+  if(typeof paintLegacy==='function') paintLegacy();
 }
 
 /* ── the catalog. `tiers()` turns one climbing number into a rank of medals. ── */
@@ -7752,7 +8935,11 @@ const STYLE_NAME={trip:'Belly Flop',swan:'The Swan',cannon:'Cannonball',sleep:'T
   tiers('back','service',S=>S.life.sendBacks,[1,10,50,200,1e3],
     ['Not Quite','Try Again','A Difficult Room','The Customer Is Always','You and the Pot Have History'],
     'Get an order sent back %n times. It happens.');
-  tiers('codex','ingredients',S=>Object.keys(S.life.cooked).length,[6,12,18,24],
+  /* the top rung must be EVERY kind, so it moves when the larder does — it was
+     24 and the two stones in #27 made "The Complete Kitchen" reachable two
+     ingredients early. Derived from KIND rather than restated. */
+  tiers('codex','ingredients',S=>Object.keys(S.life.cooked).length,
+    [6,Math.round(ROSTER.length/2),ROSTER.length-6,ROSTER.length],
     ['A Start','Half the Larder','Nearly Everything','The Complete Kitchen'],'Cook %n different kinds of thing.');
   tiers('dive','ladle',S=>S.life.dives,[1,25,100,500,2e3,1e4],
     ['First Plunge','Getting the Hang','Practised Hand','Diving Instructor','A Thousand Splashes','Master of the Deep'],'Score %n dives.');
@@ -7890,22 +9077,89 @@ function tileFor(a){
   return el;
 }
 /* ── meta save ── */
-function saveMeta(){ if(preMax) return;
-  try{ localStorage.setItem(AMETA,JSON.stringify({ v:1, runNo,
-    stats:STATS, achieved, chefExp, chefLevel, stars:chefStars })); }catch(e){}
+function saveMeta(){ if(preMax||blocked[AMETA]) return;
+  try{ localStorage.setItem(AMETA,JSON.stringify({ v:META_V, runNo,
+    stats:STATS, achieved, chefExp, chefLevel, stars:chefStars,
+    legacy:leg, carry:legCarry })); }catch(e){}
 }
 function loadMeta(){
-  let d=null; try{ d=JSON.parse(localStorage.getItem(AMETA)||'null'); }catch(e){}
+  /* the meta is read with its OWN call, so a run save this build cannot read —
+     or cannot parse — never takes the ledger down with it. They fail apart. */
+  const d=readSave(AMETA,META_V);
   if(!d) return;
   runNo=d.runNo||1;
   chefExp=d.chefExp||0; chefLevel=d.chefLevel||1; chefStars=d.stars||0;
+  /* per KEY, not by spreading the blob: an unknown id in a saved `legacy` must
+     not become a node, and a node added later must default to 0 rather than
+     undefined — which would print "NaN / 3" on the card and buy nothing. */
+  if(d.legacy) for(const n of LEG){ const v=d.legacy[n.id];
+    leg[n.id]=Math.max(0,Math.min(n.max, typeof v==='number'?v:0)); }
+  legCarry=Math.max(0,d.carry||0);
   if(d.stats){ const def=defaultStats();
     for(const sc of ['life','run','best']) STATS[sc]=Object.assign(def[sc], d.stats[sc]||{}); }
   if(Array.isArray(d.achieved)){ achieved=d.achieved.filter(r=>r&&r.id);
     for(const r of achieved) EARNED.add(r.id); }
 }
 
+/* AWAY_CAP/AWAY_RATE were consts; Long Memory moves both, so the live values
+   come from awayCap()/awayRate() and these two are the un-upgraded floor,
+   kept only so the numbers still have one place to read them from. */
 const SAVE='greatsoup.v1', AWAY_CAP=3600, AWAY_RATE=0.34;
+
+/* ═══ SAVE VERSIONS, AND REFUSING TO EAT WHAT WE CANNOT READ ═════════════════
+   Both keys carried a version field that NOTHING READ — the run save did not even
+   have one — so the first change to either shape would have silently discarded a
+   real player's progress. That mattered little when a lost blob cost one run. It
+   matters now: `greatsoup.meta.v1` holds chef levels, Stars, the Legacy tree and
+   a ~133-achievement ledger, and it is the thing Start Over is specifically
+   designed not to touch.
+
+   Three rules, and the third is the one that is easy to get wrong:
+
+     1. WRITE the version. Both blobs now carry `v`.
+     2. MIGRATE upward. MIGRATE[key][n] takes a v-n blob to v-(n+1). The chain is
+        empty today, on purpose — this establishes the mechanism at the CURRENT
+        shape rather than inventing a v2 nobody needs. A blob with no `v` at all
+        is a pre-versioning save and is read as v1, which is what it is.
+     3. NEVER OVERWRITE A SAVE FROM THE FUTURE. If `v` is higher than this build
+        understands, we cannot read it — and because the game autosaves every ten
+        seconds, "just start fresh" would destroy it within ten seconds. So the
+        key is BLOCKED: we refuse to load it and we refuse to write over it. Open
+        the newer build and the save is still there.
+   ═════════════════════════════════════════════════════════════════════════════ */
+const SAVE_V=1, META_V=1;
+const MIGRATE={ [SAVE]:{}, [AMETA]:{} };
+const blocked={ [SAVE]:false, [AMETA]:false };
+/* returns the blob at the current version, or null if it must not be touched */
+function readSave(key,cur){
+  let d=null;
+  try{ d=JSON.parse(localStorage.getItem(key)||'null'); }catch(e){ return null; }
+  if(!d||typeof d!=='object') return null;
+  let v=typeof d.v==='number'?d.v:1;      // no field = written before there was one
+  if(v>cur){
+    blocked[key]=true;
+    console.warn('The Great Soup: '+key+' was written by a newer version (v'+v+
+      ', this build reads v'+cur+'). Leaving it alone — nothing will be '+
+      'overwritten. Open the newer build to keep playing that save.');
+    return null;
+  }
+  while(v<cur){
+    const step=MIGRATE[key]&&MIGRATE[key][v];
+    if(!step){ console.warn('The Great Soup: no migration for '+key+' v'+v+
+      ' -> v'+(v+1)+'; reading it as-is.'); break; }
+    try{ d=step(d)||d; }catch(e){ console.warn('migration v'+v+' failed:',e); break; }
+    v++;
+  }
+  return d;
+}
+/* THROWING A SAVE AWAY IS A CHOICE, and it also lifts the block: if a save from
+   a newer build was refused, the key is blocked so we cannot clobber it — but a
+   player who deliberately wipes has said to let go of it, and leaving the block
+   set would mean the next run silently never saved. */
+function dropSave(key){
+  try{ localStorage.removeItem(key); }catch(e){}
+  blocked[key]=false;
+}
 function save(){
   try{
     /* NEVER SAVE THE MAXED DEV STATE.  `save()` runs on beforeunload, so
@@ -7916,8 +9170,10 @@ function save(){
        trillions, not sure if I reset it or not."
        While maxed we write the SNAPSHOT instead, so the dev state is genuinely
        non-destructive across a reload and your real progress is what persists. */
+    if(blocked[SAVE]) return;          // a newer build's save; do not touch it
     const s=preMax;
     localStorage.setItem(SAVE,JSON.stringify({
+      v:SAVE_V,
       t:Date.now(),
       broth: s?s.broth:broth,
       lv:    s?s.lv:lv,
@@ -7927,7 +9183,7 @@ function save(){
       rank:  s?s.rank:rank,
       servedN: s?s.servedN:servedN,
       act:   s?s.act:act,
-      rate:earnEMA, seen:bookSeen, chosen, dealt,
+      rate:earnEMA, seen:bookSeen, chosen, dealt, runStart,
       over:runOver, ending, endBroth, backs,
       dex:{seen:Object.keys(dexSeen), cooked:Object.keys(dexCooked)} }));
   }catch(e){}
@@ -7941,14 +9197,20 @@ function fmtDur(sec){
 }
 /* fmt() moved to the top of the file, with the rest of the kit — every number
    the player reads goes through it, so it has to be declared above all of them. */
+/* whether there WAS a run to resume, which is not the same question as whether
+   this function returned a note: it returns null both for "no save" and for "a
+   save you left two seconds ago, nothing owed". The reputation's head start keys
+   off the first and must not fire on the second. */
+let hadRun=false;
 function loadAndCatchUp(){
-  let d=null;
-  try{ d=JSON.parse(localStorage.getItem(SAVE)||'null'); }catch(e){}
+  const d=readSave(SAVE,SAVE_V);
   if(!d||typeof d.broth!=='number') return null;
+  hadRun=true;
   broth=d.broth; logs=d.logs??3; fire=d.fire??0.35;
   if(Array.isArray(d.flav)) flav=d.flav.slice(0,3);
   if(d.lv) for(const u of UP) if(typeof d.lv[u.id]==='number') lv[u.id]=d.lv[u.id];
   earnEMA=d.rate||0; bookSeen=!!d.seen;
+  if(d.runStart&&typeof d.runStart.exp==='number') runStart=d.runStart;
   if(Array.isArray(d.chosen)) chosen=d.chosen.filter(k=>CHOICE[k]);
   /* which QUESTIONS you were asked, not which side you took. the draw is random
      now, so unlike `chosen` this cannot be re-derived — it has to be saved, or
@@ -7970,11 +9232,11 @@ function loadAndCatchUp(){
   }
   const away=Math.max(0,(Date.now()-(d.t||Date.now()))/1000);
   if(away<45||earnEMA<=0) return null;
-  const paid=Math.min(away,AWAY_CAP);
-  const gain=Math.floor(earnEMA*paid*AWAY_RATE);
+  const paid=Math.min(away,awayCap());
+  const gain=Math.floor(earnEMA*paid*awayRate());
   if(gain<1) return null;
   broth+=gain; achAway(gain);
-  const capped=away>AWAY_CAP;
+  const capped=away>awayCap();
   return { art:'pot', cap:'a note, weighed down with a spoon',
     kick:'While you were gone', title:'The Pot Did Not Stop', body:[
       'You were away <em>'+fmtDur(away)+'</em>. The soup was not.',
@@ -7988,10 +9250,18 @@ function loadAndCatchUp(){
 
 setAct(1);
 loadMeta();                        // the achievement ledger, before the run loads
+buildLegacy();
+/* THE LOAD ORDER MATTERS, and CHEF.md §5 states it: meta first (chef, stars,
+   legacy), then the reputation applied to a fresh run's defaults, then the
+   per-run save on top — a soup in progress wins over a fresh legacy start.
+   loadAndCatchUp() returns non-null only when it restored one, so a null return
+   is exactly "there was no run to resume", which is when a head start applies. */
 const note=loadAndCatchUp();
+if(!hadRun) applyLegacy();
 if(note) setBook(true,0,[note]);
 else if(!bookSeen) setBook(true,0);
-paintAchBadge(); paintChef();
+resolveRunStart();                 // after both saves; see the note on runStart
+paintAchBadge(); paintChef(); paintLegacy();
 
 addEventListener('visibilitychange',()=>{ if(document.hidden){ save(); saveMeta(); } });
 addEventListener('beforeunload',()=>{ save(); saveMeta(); });
