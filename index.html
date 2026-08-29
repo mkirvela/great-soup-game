@@ -7798,7 +7798,7 @@ function tickPanel(){
   const n=affordCount();
   badge.textContent=n; badge.hidden=n===0;
   openup.classList.toggle('ready', n>0);   // wobble as a call to action
-  sweepAchievements();                     // cheap: skips everything already earned
+  sweepAchievements(!swept); swept=true;   // cheap: skips everything already earned
   paintChef();
   paintDexBadge();
   if(treeOpen) paintTree();
@@ -9808,17 +9808,43 @@ function unlock(a,silent){
   saveMeta();
 }
 function grantManual(id){ const a=ACH.find(x=>x.id===id); if(a&&!EARNED.has(a.id)) unlock(a); }
-function sweepAchievements(){
+/* ── THE FIRST SWEEP AFTER LOAD IS A BACK-FILL, NOT AN ACHIEVEMENT ──────────
+   STATS is a LIFETIME ledger and the catalog GROWS. So the sweep's first pass
+   after a load finds every medal you already qualified for but whose row was not
+   in your save — because it did not exist as a row yet when you last played —
+   and, until now, celebrated each one with its own "ACHIEVEMENT UNLOCKED" toast.
+   Matias, on the deployed build: "i got all the achievements again which leads
+   to believe that loading the save state does not really work." The save loads
+   perfectly; this is what it looks like when it does. Reproduced on the live
+   site with a save carrying six medals and intact lifetime stats: 24 earned on
+   arrival, EIGHTEEN toasts stacked up the right-hand side.
+   Back-filling is not earning. The first pass is silent and gets ONE toast that
+   says what happened, and the badge still counts them so the gallery is where
+   you go to look — which is the thing eighteen toasts were preventing. */
+let swept=false;
+function sweepAchievements(quiet){
+  let n=0;
   for(const a of ACH){ if(EARNED.has(a.id)||a.manual) continue;
     let ok=false; try{ ok=a.check(STATS); }catch(e){}
-    if(ok) unlock(a); }
+    if(ok){ unlock(a,quiet); n++; } }
+  /* `unlock` skips the badge as well when told to be silent, so a quiet pass
+     puts the count back itself — they ARE new to you, they just were not earned
+     just now. */
+  if(quiet&&n){ achNew+=n; paintAchBadge();
+    toastAch({ id:'backfill', cat:'secret', tier:3, kick:'Catching up',
+      name:n+(n===1?' medal was':' medals were')+' waiting',
+      blurb:'Earned before this update, and counted now. They are in the gallery.' }); }
 }
 /* ── the unlock toast ── */
 function toastAch(a){
   const wrap=document.getElementById('achtoasts'); if(!wrap) return;
   const el=document.createElement('div'); el.className='atoast';
+  /* the kicker is overridable because not every one of these IS an unlock: the
+     back-fill summary is one toast standing for many, and calling it ACHIEVEMENT
+     UNLOCKED would be the same lie in smaller type. */
   el.innerHTML='<div class="medal '+RING[(a.tier||1)-1]+' glow"><div class="disc">'+emblemSVG(a)+'</div></div>'+
-    '<div><div class="k">Achievement Unlocked</div><div class="nm"></div><div class="bl"></div></div>';
+    '<div><div class="k"></div><div class="nm"></div><div class="bl"></div></div>';
+  el.querySelector('.k').textContent=a.kick||'Achievement Unlocked';
   el.querySelector('.nm').textContent=a.name;
   el.querySelector('.bl').textContent=a.blurb;
   wrap.appendChild(el);
