@@ -354,10 +354,23 @@
     padding:2px 6px;border-radius:9px;border:2px solid var(--ink)}
   #menubadge[hidden]{display:none}
   /* the panel: rows, not buttons in a row — you are picking from a list */
+  /* ── AND IT HAS TO SCROLL ────────────────────────────────────────────────
+     A fixed panel with no height limit: eight rows at ~59px want 550px from a
+     top of 78, and a landscape phone is 375-440px tall. Measured, and on every
+     one of them the bottom of the list was simply off the screen with no way to
+     reach it — 852x393 ran 157px over and lost The Reputation, Start Over and
+     Debug. A SHIPPED build has no Debug row and still lost Start Over, so the
+     only way to tip the pot out was off the bottom of the screen.
+     `dvh` after `vh` as the fallback, not before: a phone's URL bar makes `vh`
+     the TALLER of the two viewport states, which is precisely the one that does
+     not fit. `overscroll-behavior:contain` so reaching the end of the list does
+     not hand the scroll to the kitchen behind it. */
   #menu{position:fixed;top:78px;right:24px;z-index:21;display:none;
     flex-direction:column;width:288px;padding:7px;
     background:#1A0F1B;border:4px solid var(--ink);
-    box-shadow:8px 8px 0 rgba(0,0,0,.5);pointer-events:auto}
+    box-shadow:8px 8px 0 rgba(0,0,0,.5);pointer-events:auto;
+    max-height:calc(100vh - 92px);max-height:calc(100dvh - 92px);
+    overflow-y:auto;overscroll-behavior:contain}
   #menu.on{display:flex}
   #menu button{display:block;position:relative;width:100%;text-align:left;
     padding:11px 13px 10px;border:0;background:transparent;cursor:pointer}
@@ -374,7 +387,8 @@
   #menu button:focus-visible{outline:3px solid var(--gold);outline-offset:-3px}
   #guestbtn b{color:#C9A24A} #codexbtn b{color:#8FB86A}
   #bookbtn b{color:#E8D6AE} #dbgbtn b{color:#9A8AA6}
-  @media (max-width:760px){ #menu{right:14px;top:66px;width:min(288px,86vw)} }
+  @media (max-width:760px){ #menu{right:14px;top:66px;width:min(288px,86vw);
+    max-height:calc(100vh - 80px);max-height:calc(100dvh - 80px)} }
   /* ── the debug menu ── */
   #dbg{position:fixed;inset:0;z-index:23;display:none;
     align-items:center;justify-content:center;padding:26px;
@@ -799,9 +813,29 @@
      ("is this the file I just saved?"), and should never win a glance it was
      not given. `pointer-events:none` so it can never eat a click on the deck. */
   #build{position:fixed;left:9px;bottom:6px;z-index:3;pointer-events:none;
-    user-select:none;font-family:var(--f-mono);font-size:9px;letter-spacing:.05em;
-    color:var(--ash-dim);opacity:.3}
-  @media (max-height:560px){ #build{font-size:8px;left:6px;bottom:4px;opacity:.24} }
+    user-select:none;font-family:var(--f-mono);font-size:9.5px;letter-spacing:.05em;
+    color:var(--ash-dim);opacity:.42}
+  /* ── IT INTRODUCES ITSELF, THEN GETS OUT OF THE WAY ──────────────────────
+     There is exactly one moment this line is worth reading, and it is the moment
+     the page loads — "is this the file I just saved?" is a question you ask on
+     arrival or not at all. So it arrives legible: gold, full opacity, on a dark
+     plaque so it is readable over whichever act's floor happens to be under it.
+     It holds for about three seconds, then settles back over four into the faint
+     mark it is meant to be for the rest of the session. Asking again is a
+     reload, which is what you were about to do anyway.
+     The plaque is a box-shadow SPREAD rather than padding, so it can appear and
+     disappear without ever moving the text it sits behind. */
+  @keyframes buildsettle{
+    0%,42%{opacity:1;color:var(--gold);
+      background:rgba(8,4,10,.82);box-shadow:0 0 0 4px rgba(8,4,10,.82)}
+    100%{opacity:.42;color:var(--ash-dim);
+      background:transparent;box-shadow:0 0 0 4px transparent}
+  }
+  #build{animation:buildsettle 7s ease-in both}
+  /* the settle is a nicety, not information — the resting state says the same
+     thing, so reduced motion simply gets the resting state. */
+  @media (prefers-reduced-motion:reduce){ #build{animation:none} }
+  @media (max-height:560px){ #build{font-size:8.5px;left:6px;bottom:4px} }
   .atoast{width:330px;display:flex;gap:12px;align-items:center;padding:13px 15px;
     border:4px solid var(--ink);background:linear-gradient(#2E1B34,#1C1022);
     box-shadow:0 12px 30px rgba(0,0,0,.6);animation:atoastin 4.8s ease both}
@@ -9615,7 +9649,15 @@ function chefInfo(exp){ let lv=1, need=40, used=0;   // exp to leave level `lv` 
   return { lv, into:exp-used, need }; }
 function addExp(n){ if(preMax||!(n>0)) return;
   const was=chefInfo(chefExp).lv;
-  chefExp+=n;
+  /* ROUNDED BACK TO ITS OWN GRID, every time. The trickle adds 0.05 or 0.25 a
+     tick, and 0.05 has no exact binary form — 720 of them make 36.00000000000009
+     rather than 36. Unrounded that drift is not cosmetic: `chefExp` is SAVED, so
+     it compounds across every session forever, and `chefInfo` levels you on
+     `exp-used>=need`, so a value sitting a hair under a threshold holds the
+     level back a tick. Both increments are exact to two decimals, so snapping
+     back to two decimals after each add bounds the error permanently instead of
+     letting it accumulate. */
+  chefExp=Math.round((chefExp+n)*100)/100;
   const now=chefInfo(chefExp).lv;
   if(now>was){ for(let L=was+1;L<=now;L++){ chefStars++; if(L%5===0) chefStars++; }  // a bonus star every 5th
     chefLevel=now; chefToast(now); saveMeta(); }
@@ -9913,7 +9955,10 @@ function buildSheet(){
   setTxt(document.getElementById('shlvl'), 'Chef Level '+i.lv);
   const xp=document.getElementById('shxp');
   if(xp){ xp.querySelector('i').style.width=(i.into/Math.max(1,i.need)*100).toFixed(1)+'%';
-    setTxt(xp.querySelector('span'), i.into+' / '+i.need+' to Lv '+(i.lv+1)); }
+    /* floored, not rounded: with the drift fixed a whole number IS whole, so
+       flooring only ever hides a genuine fraction — and rounding up could
+       print "40 / 40 to Lv 2" at a level you have not reached. */
+    setTxt(xp.querySelector('span'), Math.floor(i.into)+' / '+i.need+' to Lv '+(i.lv+1)); }
   const st=document.getElementById('shstars');
   if(st){ st.hidden=!chefStars; setTxt(st,'★ '+chefStars+' to spend'); }
   const K=skin();
@@ -10101,7 +10146,11 @@ function loadMeta(){
   const d=readSave(AMETA,META_V);
   if(!d) return;
   runNo=d.runNo||1;
-  chefExp=d.chefExp||0; chefLevel=d.chefLevel||1; chefStars=d.stars||0;
+  /* through the same rounding as addExp: a save written before that fix is
+     carrying accumulated drift, and loading it raw would keep printing
+     35.99999999999983 forever on a build that can no longer produce it. */
+  chefExp=Math.round((d.chefExp||0)*100)/100;
+  chefLevel=d.chefLevel||1; chefStars=d.stars||0;
   /* per KEY, not by spreading the blob: an unknown id in a saved `legacy` must
      not become a node, and a node added later must default to 0 rather than
      undefined — which would print "NaN / 3" on the card and buy nothing. */
