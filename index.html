@@ -791,6 +791,17 @@
   #achbtn b{color:#E6A8FF}
   #achtoasts{position:fixed;right:24px;bottom:24px;z-index:60;display:flex;
     flex-direction:column;gap:10px;pointer-events:none}
+  /* ── the build stamp ────────────────────────────────────────────────────
+     BOTTOM-LEFT because it is the last free corner: the HUD owns top-left, the
+     purse and the menu own top-right, the achievement toasts own bottom-right,
+     and the canvas draws the dev note and the MAXED badge up the middle. It is
+     deliberately almost invisible — it answers one question, asked on purpose
+     ("is this the file I just saved?"), and should never win a glance it was
+     not given. `pointer-events:none` so it can never eat a click on the deck. */
+  #build{position:fixed;left:9px;bottom:6px;z-index:3;pointer-events:none;
+    user-select:none;font-family:var(--f-mono);font-size:9px;letter-spacing:.05em;
+    color:var(--ash-dim);opacity:.3}
+  @media (max-height:560px){ #build{font-size:8px;left:6px;bottom:4px;opacity:.24} }
   .atoast{width:330px;display:flex;gap:12px;align-items:center;padding:13px 15px;
     border:4px solid var(--ink);background:linear-gradient(#2E1B34,#1C1022);
     box-shadow:0 12px 30px rgba(0,0,0,.6);animation:atoastin 4.8s ease both}
@@ -942,6 +953,72 @@
     #shwho .name{font-size:22px}
     .shr{grid-template-columns:86px auto 1fr;gap:7px;font-size:11.5px}
   }
+
+  /* ── the sheet on a landscape phone ──────────────────────────────────────
+     Measured at four handsets rather than reasoned about, which turned up THREE
+     faults where one was reported.
+
+       · THE CHROME DOES NOT SHRINK. The title bar and the identity band cost
+         194-233px whatever the screen is: 22% of a 1440x900 desktop and 59% of
+         an iPhone 14 Pro in landscape. That left the scrolling half of the sheet
+         a 102px window — four rows of a twenty-nine-row document.
+       · THE TYPE NEVER CHANGES. Every size in here measured identical on the
+         desktop and on all four phones: 12.5px rows, 10.5px effects, 8.5px
+         ladder labels. The rule that would have shrunk them keys on
+         `max-width:640px`, and a landscape phone is 667-956px WIDE — so it has
+         never once fired on the device it was written for. And shrinking was the
+         wrong instinct anyway: a phone packs ~45% more CSS pixels per inch than
+         a laptop, so an unchanged 12.5px is PHYSICALLY smaller there. The floor
+         goes up.
+       · THE COLUMNS STACK THE WRONG WAY. `max-width:900px` folds two columns
+         into one, which is right for a narrow portrait page and backwards here.
+         This game is landscape-locked: the screen is WIDE AND SHORT, so one
+         column doubles the length of the only axis that is scarce. Two columns
+         IS the mobile layout — and it is why the 932px phones, which sit above
+         that breakpoint by accident, were the readable ones.
+
+     Keyed on height, like every other landscape-phone rule in this file, and
+     placed last so it outranks the two width rules above at equal specificity. */
+  @media (max-height:560px){
+    /* the identity band, at about half its cost */
+    #shwho{gap:12px;padding:7px 12px}
+    #shwho .port{width:46px;height:46px;border-width:2px}
+    #shwho .port svg{width:36px;height:36px}
+    #shwho .name{font-size:19px}
+    #shwho .sub{font-size:10.5px;margin-top:2px}
+    #shwho .right{min-width:0}
+    #shwho .lvl{font-size:15px}
+    #shxp{height:8px;margin-top:3px;border-width:1px}
+    /* the bar is 8px and its label is absolutely positioned over it, so a wrap
+       puts the second line outside the bar entirely — "0 / 40 to Lv" above a
+       stray "2". It is a fixed-length string; let it keep its line. */
+    #shxp span{white-space:nowrap;font-size:8.5px}
+    /* the Stars pill is the tallest thing in the band and the only one with a
+       shadow, so it costs more room than its 14px suggests. */
+    #shwho .stars{font-size:12px;padding:2px 7px 1px;margin-top:5px;
+      border-width:2px;box-shadow:2px 2px 0 var(--ink)}
+    /* and the floor under the small type, which is what was actually reported */
+    .shead{padding:3px 10px}
+    .shead span{font-size:11px}
+    .shgrp .n{font-size:11.5px}
+    .shr{grid-template-columns:96px auto 1fr;gap:8px;font-size:13px;padding:2px 0}
+    .shr .eff{font-size:11.5px}
+    .shadds div{font-size:11.5px}
+    .shcard .nm{font-size:13px}
+    .shcard .ef{font-size:11.5px}
+    .shrung .lb{font-size:10.5px}
+    .shrung canvas{width:28px;height:28px}
+  }
+  /* WIDE AND SHORT, and only if there is genuinely width for two: at 667px —
+     an SE in landscape — two columns are ~325px each, which truncates the
+     effect column to "not b…" and wraps THE REPUTATION onto two lines. Measured
+     at four handsets: 852px and up is comfortable, 667px is not. Below the
+     floor it falls through to the one-column rule above, which is what that
+     rule is actually for. */
+  @media (max-height:560px) and (min-width:800px){
+    #shcols{grid-template-columns:1fr 1fr}
+    .shcol+.shcol{border-left:3px solid var(--ink);border-top:0}
+  }
 </style>
 </head>
 <body>
@@ -1082,6 +1159,7 @@
   </div>
 </div>
 <div id="achtoasts" aria-live="polite"></div>
+<div id="build" aria-hidden="true"></div>
 
 <!-- ══ THE CHARACTER SHEET ══ everything the game knows about you, on one page.
      Read-only on purpose: you spend broth in the tree and stars in the
@@ -10209,6 +10287,26 @@ if(note) setBook(true,0,[note]);
 else if(!bookSeen) setBook(true,0);
 resolveRunStart();                 // after both saves; see the note on runStart
 paintAchBadge(); paintChef(); paintLegacy();
+
+/* ── THE BUILD STAMP ────────────────────────────────────────────────────────
+   `document.lastModified` is the file's own modification time, handed over by
+   the DOM. No build step, no stamping script, nothing to remember to run — and
+   it is equally true opened off a disk (the file's mtime) and served over http
+   (the Last-Modified header), which matters because this game is played both
+   ways. That is also why it is the TIME and not the commit: a hash cannot get
+   into a single self-contained file unless something writes it there first, and
+   nothing here builds anything.
+   ISO-ish on purpose. `29/08` and `08/29` are the same six characters and mean
+   different days depending on who is reading, and a stamp whose job is to settle
+   a question should not open one. */
+(function stampBuild(){
+  const el=document.getElementById('build'); if(!el) return;
+  const d=new Date(document.lastModified);
+  if(!d||isNaN(d.getTime())) return;              // no header, no file time: say nothing
+  const p=n=>String(n).padStart(2,'0');
+  el.textContent=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+
+                 ' '+p(d.getHours())+':'+p(d.getMinutes());
+})();
 
 addEventListener('visibilitychange',()=>{ if(document.hidden){ save(); saveMeta(); } });
 addEventListener('beforeunload',()=>{ save(); saveMeta(); });
