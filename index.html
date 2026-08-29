@@ -167,13 +167,13 @@
     text-shadow:3px 3px 0 var(--ink)}
   .thead .coin{margin-left:auto}
   .thead .coin b{font-size:28px}
-  #closeup,#cxclose,#gclose,#dbgclose,#achclose,#closeleg{font-family:var(--f-disp);text-transform:uppercase;font-size:20px;
+  #closeup,#cxclose,#gclose,#dbgclose,#achclose,#closeleg,#shclose{font-family:var(--f-disp);text-transform:uppercase;font-size:20px;
     letter-spacing:.05em;padding:10px 18px 8px;border:3px solid var(--ink);
     background:#3C2438;color:var(--cream);cursor:pointer;
     box-shadow:3px 3px 0 var(--ink)}
-  #closeup:hover,#cxclose:hover,#gclose:hover,#dbgclose:hover,#achclose:hover,#closeleg:hover{background:#4E2F48;transform:translate(-1px,-1px);
+  #closeup:hover,#cxclose:hover,#gclose:hover,#dbgclose:hover,#achclose:hover,#closeleg:hover,#shclose:hover{background:#4E2F48;transform:translate(-1px,-1px);
     box-shadow:4px 4px 0 var(--ink)}
-  #closeup:active,#cxclose:active,#gclose:active,#dbgclose:active,#achclose:active,#closeleg:active{transform:translate(2px,2px);
+  #closeup:active,#cxclose:active,#gclose:active,#dbgclose:active,#achclose:active,#closeleg:active,#shclose:active{transform:translate(2px,2px);
     box-shadow:1px 1px 0 var(--ink)}
 
   /* ── THE PANEL HEADER ON A SMALL SCREEN ───────────────────────────────────
@@ -221,7 +221,7 @@
        into three. */
     .thead .lbl,#achcount{white-space:nowrap;overflow:hidden;
       text-overflow:ellipsis;min-width:0;flex:0 1 auto}
-    .thead h2,#ach .thead h2{font-size:20px;letter-spacing:.03em;
+    .thead h2,#ach .thead h2,#sheet .thead h2{font-size:20px;letter-spacing:.03em;
       white-space:nowrap;flex:0 0 auto;text-shadow:2px 2px 0 var(--ink)}
     /* #achclose carries an inline margin-left, which no stylesheet rule can
        outrank — so the gap is opened from the count's side instead. Its own
@@ -230,20 +230,20 @@
     .aprog{display:none}
     /* the way out, as a square. A glyph is understood on every phone ever
        shipped and it is the only thing in the row with a fixed cost. */
-    #closeup,#cxclose,#gclose,#dbgclose,#achclose,#closeleg{
+    #closeup,#cxclose,#gclose,#dbgclose,#achclose,#closeleg,#shclose{
       font-size:0;padding:0;width:40px;height:40px;flex:0 0 auto;
       display:flex;align-items:center;justify-content:center;
       border-width:2px;box-shadow:2px 2px 0 var(--ink)}
     #closeup::after,#cxclose::after,#gclose::after,#dbgclose::after,
-    #achclose::after,#closeleg::after{
+    #achclose::after,#closeleg::after,#shclose::after{
       content:"\00d7";font-family:var(--f-ui);font-size:27px;font-weight:700;
       line-height:1;color:var(--cream)}
   }
   @media (max-height:560px){
     /* 52px of inset is 13% of a landscape phone. 16px is still a frame. */
-    #tree,#legacy,#codex,#guests,#ach,#dbg{padding:8px}
-    .tmodal,.cmodal,#ach .cmodal{border-width:3px}
-    .thead,#ach .thead{padding:6px 10px;gap:10px;border-bottom-width:3px}
+    #tree,#legacy,#codex,#guests,#ach,#dbg,#sheet{padding:8px}
+    .tmodal,.cmodal,#ach .cmodal,#sheet .cmodal{border-width:3px}
+    .thead,#ach .thead,#sheet .thead{padding:6px 10px;gap:10px;border-bottom-width:3px}
     .thead .coin b{font-size:19px}
     .thead .coin i{width:14px;height:14px;border-width:2px}
     .thead .coin{gap:6px}
@@ -692,7 +692,16 @@
      have left all four buttons clickable through a drag. */
   body.drag #hudbar > *{pointer-events:none}
   /* ---------- chef exp bar ---------- */
-  .chef{margin-top:10px;max-width:172px}
+  .chef{margin-top:10px;max-width:172px;
+    /* IT IS THE DOOR TO THE CHARACTER SHEET, so it has to be pressable — and
+       `.hud` is pointer-events:none, because the readouts must never eat a stir
+       aimed at the pot behind them. Anything in there meant to be pressed opts
+       back in, exactly as #chstars already does. NOTHING HEADLESS CAN SEE THIS:
+       the harness calls onclick directly, and a handler on an unclickable
+       element answers perfectly. `--sheet` guards it with a grep instead. */
+    pointer-events:auto;cursor:pointer;border-radius:3px}
+  .chef:hover{background:rgba(255,211,92,.08)}
+  .chef:focus-visible{outline:3px solid var(--cream);outline-offset:2px}
   .chbar{height:7px;background:#2A1A2A;border:2px solid var(--ink);margin-top:4px}
   .chbar i{display:block;height:100%;width:0;
     background:linear-gradient(90deg,#7A3FA0,#E6A8FF);transition:width .35s ease}
@@ -793,6 +802,146 @@
   .atoast .bl{font-family:var(--f-ui);font-size:11.5px;color:var(--ash);line-height:1.35}
   @keyframes atoastin{0%{transform:translateX(130%)}9%,84%{transform:translateX(0)}100%{transform:translateX(130%);opacity:0}}
   @media (prefers-reduced-motion:reduce){ .atoast{animation:none} }
+
+  /* ══ THE CHARACTER SHEET ═══════════════════════════════════════════════════
+     `sheet.html` is the study and Treatment A is what this is. One page, two
+     columns, no tabs, read-only: LEFT is what Start Over deletes, RIGHT is what
+     it never touches. That split is the run save against the meta save, which is
+     the spine of every meta system in this build — putting it in the layout
+     means the sheet teaches it just by being open, and it is the one comparison
+     tabs would have hidden behind a click. */
+  #sheet{position:fixed;inset:0;z-index:22;display:none;align-items:center;
+    justify-content:center;padding:26px;background:rgba(8,4,10,.86);pointer-events:auto}
+  #sheet.on{display:flex}
+  #sheet .cmodal{width:min(1240px,100%);height:min(880px,100%)}
+  #sheet .thead{display:flex;align-items:center;gap:16px;padding:16px 20px;
+    background:#150C17;border-bottom:3px solid var(--ink)}
+  #sheet .thead h2{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.06em;
+    font-size:28px;color:var(--cream);margin:0}
+  #shwhere{font-family:var(--f-mono);font-size:12px;color:var(--ash-dim)}
+  /* ── the identity band ── */
+  #shwho{flex:none;display:flex;align-items:center;gap:20px;padding:14px 20px;
+    background:#211230;border-bottom:3px solid var(--ink)}
+  #shwho .port{width:88px;height:88px;flex:none;background:#150C17;
+    border:3px solid var(--ink);display:grid;place-items:center}
+  #shwho .port svg{width:70px;height:70px}
+  #shwho .name{font-family:var(--f-disp);text-transform:uppercase;font-size:32px;
+    line-height:.95;color:var(--cream)}
+  #shwho .sub{font-family:var(--f-mono);font-size:11.5px;color:var(--ash);margin-top:5px}
+  #shwho .sub em{color:var(--gold);font-style:normal}
+  #shwho .right{margin-left:auto;text-align:right;min-width:250px}
+  #shwho .lvl{font-family:var(--f-disp);text-transform:uppercase;font-size:22px;color:var(--cream)}
+  #shxp{height:12px;background:#150C17;border:2px solid var(--ink);margin-top:6px;position:relative}
+  #shxp i{display:block;height:100%;background:linear-gradient(90deg,var(--bronze),var(--gold))}
+  #shxp span{position:absolute;right:5px;top:0;font-family:var(--f-mono);font-size:9px;
+    line-height:8px;color:var(--cream);text-shadow:0 0 3px #000}
+  #shwho .stars{font-family:var(--f-disp);text-transform:uppercase;font-size:14px;
+    color:var(--ink);background:var(--gold);border:3px solid var(--ink);
+    padding:4px 9px 2px;margin-top:8px;display:inline-block;box-shadow:3px 3px 0 var(--ink)}
+  /* ── the two columns ── */
+  #shscroll{flex:1;overflow-y:auto;background:#150C17}
+  #shcols{display:grid;grid-template-columns:1fr 1fr;align-items:start}
+  .shcol{padding:0 20px 26px}
+  .shcol+.shcol{border-left:3px solid var(--ink);background:#130A16;min-height:100%}
+  .shead{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.10em;
+    font-size:15px;color:var(--ink);background:var(--ash);margin:0 -20px 12px;
+    padding:6px 20px 4px;display:flex;align-items:baseline;gap:10px;
+    position:sticky;top:0;z-index:2}
+  .shead span{font-family:var(--f-mono);font-size:10px;letter-spacing:.04em;
+    margin-left:auto;text-transform:none}
+  .shgrp{font-family:var(--f-disp);text-transform:uppercase;letter-spacing:.08em;
+    font-size:15px;margin:18px 0 8px;padding-bottom:5px;border-bottom:2px solid #3A2A38;
+    display:flex;align-items:baseline;gap:9px;color:#C9A24A}
+  .shgrp .n{font-family:var(--f-mono);font-size:10.5px;color:var(--ash-dim);
+    margin-left:auto;text-transform:none;letter-spacing:0}
+  .shgrp.t-hand{color:#FFD35C} .shgrp.t-pot{color:#F0A03C}
+  .shgrp.t-fire{color:#FF9A3C} .shgrp.t-word{color:#8ED96A}
+  /* ── one row: name, pips, what it is doing right now ── */
+  .shr{display:grid;grid-template-columns:106px auto 1fr;gap:10px;align-items:baseline;
+    padding:3px 0;font-size:12.5px}
+  .shr .nm{color:var(--cream);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .shr .eff{font-family:var(--f-mono);font-size:10.5px;color:var(--ash-dim);text-align:right;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .shr.max .nm{color:var(--gold)}
+  .shr.zero .nm{color:var(--ash-dim)}
+  /* PIPS, NOT A NUMBER. A level is a small integer, and a row of dots is read
+     without being parsed — the trick a paper character sheet has always played.
+     Above twelve they would stop being countable, so the widest node in the
+     tree (Boil Power, 14) is the ceiling this has to survive; `.narrow` shrinks
+     them rather than letting the row wrap. */
+  .shpips{display:flex;gap:2.5px;align-items:center}
+  .shpips b{width:7px;height:7px;background:#2E1C30;border:1.5px solid var(--ink);
+    border-radius:50%;display:block}
+  .shpips b.on{background:currentColor}
+  .shpips.narrow b{width:5.5px;height:5.5px;border-width:1px;gap:2px}
+  /* ── what it adds up to ── */
+  .shadds{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;margin-top:4px}
+  .shadds div{display:flex;gap:8px;font-family:var(--f-mono);font-size:11px;
+    padding:3px 0;border-bottom:1px dotted #33223A}
+  .shadds i{font-style:normal;color:var(--ash-dim)}
+  .shadds b{margin-left:auto;color:var(--cream);font-variant-numeric:tabular-nums}
+  .shadds b.up{color:var(--umami)}
+  /* ── the cards taken ── */
+  .shcard{display:flex;gap:9px;align-items:baseline;padding:5px 0;
+    border-bottom:1px dotted #33223A}
+  .shcard .pip{width:9px;height:9px;flex:none;background:#6B2118;
+    border:2px solid var(--ink);transform:rotate(45deg);margin-top:3px}
+  .shcard .nm{color:var(--cream);font-size:12.5px}
+  .shcard .ef{font-family:var(--f-mono);font-size:10px;color:var(--ash-dim);
+    margin-left:auto;text-align:right;max-width:56%}
+  .shnone{font-family:var(--f-mono);font-size:11px;color:var(--ash-dim);padding:6px 0}
+  /* ── the ladder of ladles ── */
+  .shladder{display:flex;gap:5px;margin:6px 0 2px}
+  .shrung{flex:1;min-width:0;border:2px solid var(--ink);background:#150C17;
+    padding:6px 2px 5px;text-align:center}
+  .shrung canvas{width:34px;height:34px;display:block;margin:0 auto 3px}
+  .shrung .lb{font-family:var(--f-mono);font-size:8.5px;color:var(--ash-dim);
+    text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  .shrung.has{background:#2A1A2E}
+  .shrung.now{background:#3A2A1E;border-color:var(--gold)}
+  .shrung.now .lb{color:var(--gold)}
+  .shrung.locked canvas{opacity:.22;filter:grayscale(1)}
+  /* ── medals ── */
+  #shabar{height:14px;background:#150C17;border:2px solid var(--ink);
+    position:relative;margin:4px 0 10px}
+  #shabar i{display:block;height:100%;
+    background:linear-gradient(90deg,var(--bronze),var(--silver) 55%,var(--tgold))}
+  #shabar span{position:absolute;right:6px;top:0;font-family:var(--f-mono);
+    font-size:9.5px;line-height:10px;color:var(--cream);text-shadow:0 0 3px #000}
+  .shacats{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
+  .shacat{display:flex;align-items:center;gap:8px;font-family:var(--f-mono);
+    font-size:10.5px;padding:2px 0}
+  .shacat i{font-style:normal;color:var(--ash-dim);width:72px;flex:none;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .shacat .b{flex:1;height:6px;background:#2A1A2A;border:1.5px solid var(--ink)}
+  .shacat .b em{display:block;height:100%;background:var(--umami)}
+  .shacat b{color:var(--ash);font-variant-numeric:tabular-nums;width:42px;text-align:right}
+  /* ── the life ledger ── */
+  .shledger{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+  .shledger div{display:flex;font-family:var(--f-mono);font-size:11px;padding:3px 0;
+    border-bottom:1px dotted #33223A}
+  .shledger i{font-style:normal;color:var(--ash-dim)}
+  .shledger b{margin-left:auto;color:var(--cream);font-variant-numeric:tabular-nums}
+  /* THE HUD's CHEF BLOCK IS THE DOOR. It is already the identity readout and it
+     already carries a live number, so it needs no new chrome to explain itself —
+     it only has to look pressable. */
+  /* ONE COLUMN ON A PHONE. Two 106px label columns plus pips plus an effect
+     string do not fit in half of 640px, and the run/forever split survives being
+     stacked — it is still first and second, just not side by side. */
+  @media (max-width:900px){
+    #shcols{grid-template-columns:1fr}
+    .shcol+.shcol{border-left:0;border-top:3px solid var(--ink);min-height:0}
+    .shadds,.shacats,.shledger{grid-template-columns:1fr}
+    #shwho .right{min-width:0}
+  }
+  @media (max-width:640px){
+    #shwho{gap:12px;padding:10px 12px}
+    #shwho .port{width:56px;height:56px}
+    #shwho .port svg{width:44px;height:44px}
+    #shwho .name{font-size:22px}
+    .shr{grid-template-columns:86px auto 1fr;gap:7px;font-size:11.5px}
+  }
 </style>
 </head>
 <body>
@@ -833,7 +982,8 @@
     <div class="row"><span class="lbl">Aroma</span><span id="varo" style="font-family:var(--f-mono);font-size:10px;color:var(--hot)">—</span></div>
   </div>
   <!-- CHEF EXP: the bar that always climbs, across runs. CHEF.md §1. -->
-  <div class="chef">
+  <div class="chef" id="chefdoor" role="button" tabindex="0"
+       title="The Chef — everything you have, on one page">
     <div class="row"><span class="lbl">Chef</span><span id="chlv">Lv 1</span></div>
     <div class="chbar"><i id="chfill"></i></div>
     <!-- the stars sit UNDER the bar rather than inside its label: they are a
@@ -872,6 +1022,7 @@
 </div>
 
 <div id="menu" aria-hidden="true">
+  <button id="chefbtn"><b>The Chef</b><span>everything you have, on one page</span></button>
   <button id="guestbtn"><b>The Guests</b><span id="mg"></span></button>
   <button id="codexbtn"><b>Ingredients</b><span id="mc"></span>
     <em id="dexbadge" hidden>0</em></button>
@@ -908,6 +1059,9 @@
   <g id="e-node"><circle cx="32" cy="14" r="7" fill="#FFD35C" stroke="#1A1116" stroke-width="3.5"/><circle cx="16" cy="46" r="7" fill="#C9A24A" stroke="#1A1116" stroke-width="3.5"/><circle cx="48" cy="46" r="7" fill="#C9A24A" stroke="#1A1116" stroke-width="3.5"/><path d="M32 20 L18 40 M32 20 L46 40" stroke="#8A6A38" stroke-width="4"/></g>
   <g id="e-card"><rect x="16" y="12" width="32" height="40" rx="4" fill="#EFDDB8" stroke="#1A1116" stroke-width="4"/><path d="M32 22 l6 8 -6 8 -6 -8Z" fill="#6B2118"/></g>
   <g id="e-pot"><path d="M14 26 C12 44 20 54 32 54 C44 54 52 44 50 26Z" fill="#3E4650" stroke="#1A1116" stroke-width="4" stroke-linejoin="round"/><ellipse cx="32" cy="26" rx="20" ry="6" fill="#FFCB63" stroke="#1A1116" stroke-width="3"/></g>
+  <!-- the only new emblem the sheet needs: you. Same chunky outline as the rest,
+       and the hat is the one silhouette in this kitchen that can only be a cook. -->
+  <g id="e-chef"><circle cx="32" cy="37" r="16" fill="#E7C9A0" stroke="#1A1116" stroke-width="4"/><path d="M15 27 C11 13 24 7 32 13 C40 7 53 13 49 27 C43 23 21 23 15 27Z" fill="#FFF3DC" stroke="#1A1116" stroke-width="4" stroke-linejoin="round"/><circle cx="26" cy="37" r="2.6" fill="#1A1116"/><circle cx="38" cy="37" r="2.6" fill="#1A1116"/><path d="M27 45 C30 48 34 48 37 45" stroke="#1A1116" stroke-width="3" fill="none" stroke-linecap="round"/></g>
   <g id="e-star"><path d="M32 6 L39 24 L58 24 L43 36 L48 55 L32 43 L16 55 L21 36 L6 24 L25 24Z" fill="#FFD35C" stroke="#1A1116" stroke-width="4" stroke-linejoin="round"/></g>
   <g id="e-return"><path d="M40 20 A16 16 0 1 0 48 34" fill="none" stroke="#FF8FA0" stroke-width="5" stroke-linecap="round"/><path d="M40 12 L40 22 L30 22Z" fill="#FF8FA0" stroke="#1A1116" stroke-width="2"/></g>
 </defs></svg>
@@ -928,6 +1082,34 @@
   </div>
 </div>
 <div id="achtoasts" aria-live="polite"></div>
+
+<!-- ══ THE CHARACTER SHEET ══ everything the game knows about you, on one page.
+     Read-only on purpose: you spend broth in the tree and stars in the
+     reputation, and a sheet you can also shop from is two screens fighting. -->
+<div id="sheet" aria-hidden="true">
+  <div class="cmodal" role="dialog" aria-label="The Chef">
+    <div class="thead">
+      <h2>The Chef</h2>
+      <span id="shwhere"></span>
+      <button id="shclose" style="margin-left:auto">Close · esc</button>
+    </div>
+    <div id="shwho">
+      <div class="port">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><use href="#e-chef"/></svg>
+      </div>
+      <div>
+        <div class="name" id="shname">The First Hand</div>
+        <div class="sub" id="shsub"></div>
+      </div>
+      <div class="right">
+        <div class="lvl" id="shlvl">Chef Level 1</div>
+        <div id="shxp"><i></i><span></span></div>
+        <div class="stars" id="shstars" hidden>★ 0</div>
+      </div>
+    </div>
+    <div id="shscroll"><div id="shcols"></div></div>
+  </div>
+</div>
 
 <div id="codex" aria-hidden="true">
   <div class="cmodal" role="dialog" aria-label="Ingredients">
@@ -2324,6 +2506,74 @@ let logs=3;
    worth more than a dying one. */
 let fire=0.35;
 let ptr={x:0,y:0,down:false,mode:null,overStove:false}, held=[];
+/* ══ THE LADDER OF LADLES ═══════════════════════════════════════════════════
+   Six colours and a wake, and NOTHING ELSE. A skin never scoops wider, cuts
+   harder or holds more — the moment it does, the parcel stops being a treat and
+   becomes a wall for whoever has not had one yet, and every balance number in
+   this file would have to be re-derived against which ladle you happen to be
+   holding. `ladles.html` is the sheet these rows come from and `--parcel`
+   asserts they still match it, so the study cannot drift away from the game.
+
+   IT IS A LADDER, NOT A DRAW. A parcel always hands you the NEXT rung, never a
+   repeat and never a lower one, which is why there is no duplicate rule, no
+   pity counter and no bad pull anywhere in here. Reach the top and the parcels
+   stop coming for good — see parcelDue().
+
+   WHY THESE SIX AND IN THIS ORDER.  The submerged pass runs every colour through
+   mix(c, A.broth, 0.62), so a bowl in the soup is 62% orange whatever skin it
+   wears — a skin that differs only in fill colour is a skin nobody can see
+   during the exact activity they opened the parcel for. So each rung has to own
+   something that survives the broth, and they alternate which: `tin` and `bone`
+   are read off the BOWL (Δwet 41 and 56 against the stock ladle), `copper` and
+   `kraken` off the WAKE (159 and 180 away from the stock cream), and `comet` and
+   `his` off both. Two rungs in a row that are legible the same way read as the
+   same prize twice.
+
+   `wood` IS THE LADLE THE GAME ALREADY SHIPPED, to four hex digits. ladles.html
+   authors it as its own row and measures Δwet 8 against the stock tool, which is
+   invisible — so rather than carry two names for one object it keeps the stock
+   constants verbatim. Nobody's ladle changes appearance the day this lands. */
+const LADLES=[
+ {id:'wood',   tier:0, name:'A Wooden Spoon, Worn Flat',
+  handle:'#C08A50', knob:'#C08A50', bowl:'#D69A5C', rim:'#9A6633', inner:'#A87039',
+  wake:'#FFF5D7', puff:'#FFF3DC'},
+ {id:'tin',    tier:0, name:'Tin, With A Chip In It',
+  handle:'#8E93A0', knob:'#6E7481', bowl:'#A9AFBC', rim:'#6A7080', inner:'#8A909E',
+  wake:'#EAF1FF', puff:'#DCE6F5'},
+ {id:'copper', tier:1, name:'Copper, Green At The Seams',
+  handle:'#B56E3C', knob:'#8E5228', bowl:'#C98247', rim:'#7E4A22', inner:'#AE6E36',
+  wake:'#8ED96A', puff:'#B8E79A'},
+ {id:'bone',   tier:1, name:'Bone, And Not A Cow’s',
+  handle:'#E4DAC4', knob:'#CBBFA4', bowl:'#EFE7D4', rim:'#A99C82', inner:'#DCD0B6',
+  wake:'#FFF6E0', puff:'#F0E6CE'},
+ {id:'comet',  tier:2, name:'Cut From A Comet',
+  handle:'#7E93C4', knob:'#5E77A8', bowl:'#9FD8FF', rim:'#4E6494', inner:'#7FB8E8',
+  wake:'#9FD8FF', puff:'#CFE8FF'},
+ {id:'kraken', tier:2, name:'Kraken Ivory',
+  handle:'#6E2C6C', knob:'#4A1A46', bowl:'#8A2E86', rim:'#3E1638', inner:'#6E2468',
+  wake:'#C25E8A', puff:'#D69AC4'},
+ {id:'his',    tier:3, name:'His Ladle',
+  handle:'#3A3138', knob:'#FFD35C', bowl:'#4A4048', rim:'#211B20', inner:'#3A3138',
+  wake:'#FFD35C', puff:'#8E7A54'},
+];
+/* HOW LOUD THE REVEAL IS, by rung. Four clicks of MORE — more tearing, more
+   light, more shake — and then the top of the ladder is the only one that pays
+   off with LESS: the room goes almost black, the dust cuts out, and it rises
+   slower than anything else in the game. That reversal is the whole trick. */
+const LTIER=[
+ {n:'common', dim:0.00, slow:1.00, embers: 8},
+ {n:'good',   dim:0.22, slow:1.15, embers:16},
+ {n:'rare',   dim:0.46, slow:1.35, embers:30},
+ {n:'his',    dim:0.86, slow:1.80, embers: 0},
+];
+/* WHICH RUNG YOU ARE ON. Index into LADLES; 0 is the tool every kitchen starts
+   with. It lives in the META save next to the achievements and the reputation,
+   NOT in the run save — a run is 24 minutes and the ladder is six parcels, so a
+   per-run ladder would put His Ladle out of reach by construction. */
+let ladleTier=0;
+const skin=()=>LADLES[Math.max(0,Math.min(LADLES.length-1,ladleTier))];
+const topLadle=()=>ladleTier>=LADLES.length-1;
+
 // the ladle is a physical object with mass that lags behind your hand
 let ladle={x:0,y:0,vx:0,vy:0,ang:-0.6}, wake=[], LR=40;
 let dragging=false, ladleIn=0, ladleSub=0;   // how far the bowl is under
@@ -2986,6 +3236,35 @@ function applyMods(){
    there they get hungrier, about 2.5% a second. Open now against an unprepared
    pot, or stoke the fire and fill the broth first and face a bigger order. */
 let diner=null, servedN=0, serveFlash=0, doorT=0, dingT=0, doorKick=0;
+/* ── AND SOMETIMES IT IS NOT A CUSTOMER ─────────────────────────────────────
+   Rarely, the thing standing at the hatch is a parcel. It is the same knock, the
+   same hatch and the same click to open — the ONLY new idea is one branch at the
+   moment the door goes off, which is why this needs no arrival system of its
+   own. See `pull.html` for the sheet this comes from.
+
+   IT IS NOT THE POT, AND THAT IS DELIBERATE. A lid coming off already means you
+   have failed in this game — the boil-over is a hazard with a pink ring and the
+   words ABOUT TO BOIL OVER — so using the same picture for a reward would be a
+   mixed signal, and the pot is the one sacred object in the fiction. Paper can
+   be torn. A pot cannot.
+
+   COUNTED IN GUESTS, NOT IN SECONDS.  The sketch asked for a wall-clock cooldown
+   of about a quarter of an hour and it was not built, for the same reason the
+   door itself stopped being a timer in 46ccf66: a stopwatch is a thing that
+   happens TO you. Both dials below are denominated in people you
+   actually served, so a parcel is something your cooking earned and a kitchen
+   left simmering earns nothing at all. It also makes the pacing testable without
+   a clock — `--parcel` asserts the gap in serves, which cannot go stale.
+
+   The arithmetic: PARCEL_GAP serves of silence, then PARCEL_ODDS a knock, is
+   3 + 1/0.30 ≈ 6.3 knocks between parcels. A run is about twenty, so roughly
+   three a run and the six-rung ladder finishes across two or three runs — after
+   which parcelDue() returns false forever and the door only ever brings people
+   again. */
+let parcel=null, lastParcelAt=-99;
+const PARCEL_GAP=3, PARCEL_ODDS=0.30;
+/* how long the prize takes to rise, before the per-rung `slow` stretches it */
+const REVEAL_SECS=2.4;
 /* THE RUN CAN END NOW.  once Mother Stock is served the treadmill stops: the door
    schedules no new knock, the ending card is dealt, and `runOver` gates the room
    for good until a new run is begun. `backs` is the run-long send-back tally the
@@ -3074,6 +3353,12 @@ function orderSize(c){
   return Math.max(ORDER_FLOOR*w, rate*ORDER_SECS*w)*MOD.needMul;
 }
 function newDiner(kind){
+  /* ONE THING AT THE DOOR AT A TIME.  The door itself alternates between them
+     and never produces both, but the debug menu can seat a diner on top of a
+     waiting parcel — and stepDiner hands the whole tick to the parcel, so the
+     diner would stand there frozen with a live order. The invariant is enforced
+     where it can be broken rather than defended in the four places that draw. */
+  parcel=null;
   kind=kind||guestFor(rank);
   const c=CAST[kind];
   /* the order grows by ACT, not by how many you have served. it used to be
@@ -3382,6 +3667,97 @@ function letThemIn(){
   diner.st='in'; diner.t=0; diner.need=Math.round(diner.need);
   return true;
 }
+/* ══ THE PARCEL, FROM THE KNOCK TO THE LADLE ═══════════════════════════════ */
+/* IS THIS KNOCK A CUSTOMER OR A COURIER.  Four gates, and every one of them is
+   a rule rather than a roll:
+     · the ladder is finished — no more parcels, ever. This is the whole of the
+       "and then it stops" promise, and it is one line;
+     · the run is over — Mother Stock is the last thing through that door;
+     · nobody has been served yet — the FIRST knock of a run is always a person,
+       so the door teaches what it is for before it does anything clever;
+     · and not on the heels of the last one.
+   Only past all four is a coin flipped at all. */
+function parcelDue(){
+  return !topLadle() && !runOver && servedN>=1 &&
+         servedN-lastParcelAt>=PARCEL_GAP && Math.random()<PARCEL_ODDS;
+}
+function newParcel(){
+  /* THE PRIZE IS DECIDED NOW, not at the burst, because the tease needs it: the
+     light coming through the paper from the second tear on is already the new
+     ladle's own colour. That is the reason to keep clicking, and it is the one
+     thing in this sequence the player can read before they can see it. */
+  parcel={ st:'wait', t:0, rev:0, tear:0, kick:0,
+           prize:Math.min(LADLES.length-1, ladleTier+1) };
+  lastParcelAt=servedN;
+  dingT=1;
+}
+/* ONE CLICK, ONE TEAR.  `pull.html` records its own first pass at this — a
+   four-and-a-half second cutscene — and why it was thrown out: the player was a
+   spectator of their own reward. Four clicks fixes that. You cause it, you pace
+   it, and the game only takes over for the payoff. */
+function tearParcel(){
+  if(!parcel||parcel.st!=='wait') return false;
+  const K=LADLES[parcel.prize], px=HATCH.x, py=CTR.y-CTR.h*0.9;
+  parcel.tear++; parcel.kick=1; parcel.t=0;
+  if(parcel.tear<4){
+    /* paper dust on every tear, and from the second one the light spilling out
+       of the gap is the prize's colour rather than the parcel's. */
+    for(let i=0;i<5+parcel.tear*5;i++){
+      const a=Math.random()*TAU;
+      puff(px+rnd(-CTR.w*0.10,CTR.w*0.10), py+rnd(-R*0.05,R*0.05),
+        { vx:Math.cos(a)*rnd(40,180), vy:Math.sin(a)*rnd(30,110)-40,
+          r0:R*0.012, r1:R*rnd(0.05,0.13), life:rnd(0.22,0.44),
+          c:parcel.tear>=2?K.puff:'#D9CBB4', a:rnd(0.30,0.55) });
+    }
+    if(parcel.tear>=2){
+      for(let i=0;i<4*parcel.tear;i++){ const a=Math.random()*TAU, v=rnd(1.2,4.0);
+        sparks.push({x:px,y:py,vx:Math.cos(a)*v,vy:Math.sin(a)*v*YS-1.0,
+                     life:1,c:K.wake}); }
+    }
+    return true;
+  }
+  /* ── THE FOURTH CLICK ─────────────────────────────────────────────────────
+     The paper bursts into strips, the frame whites out, and the thing rises out
+     of it. The white-out is a CUT, and it is doing real work: it hides the swap
+     from parcel to prize, so the ladle never has to be seen sliding out from
+     behind a piece of paper. It is the one moment in this sequence allowed to be
+     loud. */
+  parcel.st='show'; parcel.rev=0; parcel.t=0;
+  /* THE RUNG IS TAKEN HERE, not when the animation ends. Anything that waits for
+     an animation to finish before committing is a thing a closed tab can steal —
+     and this is a reward the player cannot earn twice. Written to disk in the
+     same breath, for the same reason. */
+  /* NEVER BACKWARDS.  parcelDue() cannot produce a lower rung, but the debug
+     menu can move the ladder while a parcel is mid-tear, and a reward that took
+     something away would be the worst bug this feature could have. */
+  ladleTier=Math.min(LADLES.length-1, Math.max(ladleTier, parcel.prize));
+  saveMeta();
+  const T2=LTIER[K.tier];
+  waves.push({x:px,y:py,t:0,s:R*0.52,big:1});
+  waves.push({x:px,y:py,t:-0.12,s:R*0.30});
+  pops.push({x:px,y:py,t:0,s:R*0.34});
+  for(let i=0;i<26;i++){                       // the paper, gone to strips
+    const a=Math.random()*TAU;
+    puff(px,py,{ vx:Math.cos(a)*rnd(180,460), vy:Math.sin(a)*rnd(90,260)-90,
+                 r0:R*0.02, r1:R*rnd(0.16,0.44), life:rnd(0.30,0.60),
+                 c:i%3===0?K.puff:'#D9CBB4', a:rnd(0.40,0.72) });
+  }
+  /* AND THE TOP OF THE LADDER PAYS OFF WITH LESS.  After four clicks of more —
+     more tearing, more light, more shake — His Ladle arrives to no embers at
+     all, in a room gone almost black, with one rim light on it. `embers: 0` is
+     not an oversight; it is the cheapest trick in here and the one that lands. */
+  for(let i=0;i<T2.embers;i++){ const a=Math.random()*TAU, v=rnd(2.0,7.5);
+    sparks.push({x:px,y:py,vx:Math.cos(a)*v,vy:Math.sin(a)*v*YS-1.6,
+                 life:1,c:i%3?K.wake:'#FFF6E2'}); }
+  return true;
+}
+function stepParcel(dt){
+  parcel.kick=Math.max(0,parcel.kick-dt*3.4);
+  parcel.t+=dt;
+  if(parcel.st!=='show') return;
+  parcel.rev+=dt/(REVEAL_SECS*LTIER[LADLES[parcel.prize].tier].slow);
+  if(parcel.rev>=1) parcel=null;               // and the door is free again
+}
 function stepDiner(dt){
   serveFlash += serveFlash>0 ? -dt*1.4 : (serveFlash<0 ? dt*1.4 : 0);
   if(Math.abs(serveFlash)<0.01) serveFlash=0;
@@ -3390,6 +3766,10 @@ function stepDiner(dt){
   /* the chosen ending plays for a beat — the crowd going in, or the fire going
      out — and then the book opens on the last page of the run. */
   if(runOver&&endT>0){ endT-=dt; if(endT<=0){ endT=0; openEpilogue(); } }
+  /* A PARCEL OCCUPIES THE DOOR exactly the way a guest does: the bar stops
+     filling, nobody else can knock, and it waits — with no patience timer and no
+     way to lose it — until you go and open it. */
+  if(parcel){ stepParcel(dt); return; }
   if(!diner){
     /* WHAT BRINGS SOMEBODY TO THE DOOR.  this used to be pure time — a rate set
        by `allure` back when allure was a smoothed function of TOTAL flavour, and
@@ -3436,7 +3816,11 @@ function stepDiner(dt){
        fourteen in a row, while the hatch's own foresight line read the ROTA and
        cheerfully announced THE GUILD INSPECTOR. the UI was telling the truth and
        the door was not. */
-    if(doorT>=1){ doorT=0; newDiner(); }
+    /* AND HERE IS THE WHOLE FEATURE: one branch, at the moment the door goes
+       off. Everything that makes a parcel rare, earned and un-farmable is
+       already true of this line, because the thing being branched on is the
+       door — and the door is made of busy seconds at the pot. */
+    if(doorT>=1){ doorT=0; if(parcelDue()) newParcel(); else newDiner(); }
     return;
   }
   diner.t+=dt;
@@ -3706,7 +4090,13 @@ function drawStarHatch(x,w,h,top,knocking,open){
   }
 }
 function drawDoor(){        /* the serving hatch, cut into the back wall */
-  const knocking = diner && diner.st==='knock';
+  /* A PARCEL KNOCKS THE SAME WAY A PERSON DOES. The shake, the amber frame, the
+     act-5 rift — all of it is driven off `knocking`, so a courier gets the whole
+     arrival for free and the only thing that differs is what the hatch says
+     underneath. This is the entire reason the design puts the parcel at the door
+     rather than on the counter. */
+  const waiting = !!(parcel && parcel.st==='wait');
+  const knocking = (diner && diner.st==='knock') || waiting;
   const open = diner && diner.st!=='knock';
   const {x,w,h}=HATCH, top=HATCH.bottom-h;
   const shake = knocking ? Math.sin(T*22)*Math.max(0,Math.sin(T*1.6))*3.0 : 0;
@@ -3789,7 +4179,7 @@ function drawDoor(){        /* the serving hatch, cut into the back wall */
   const fs=Math.round(Math.max(10,R*0.062));
   ctx.font='700 '+fs+'px ui-monospace,Menlo,monospace';
   ctx.textAlign='center'; ctx.lineWidth=Math.max(4,fs*0.3); ctx.lineJoin='round';
-  if(!diner){
+  if(!diner&&!parcel){
     const bw=w*0.86, bx2=x-bw/2, by2=CTR.y+CTR.h*1.9;
     ctx.beginPath(); ctx.rect(bx2,by2,bw,R*0.042);
     ctx.fillStyle='rgba(0,0,0,.45)'; ctx.fill();
@@ -3815,7 +4205,31 @@ function drawDoor(){        /* the serving hatch, cut into the back wall */
       ctx.fillStyle='#7FC4E8'; ctx.fillText('NEXT: '+nx2.n.toUpperCase(),x,by2+R*0.215);
     }
   }
-  if(knocking){
+  if(waiting){
+    /* WHAT IT SAYS WHEN THERE IS NOBODY THERE.  Foresight named the next GUEST
+       on the bar above and that is still true — the rota has not moved and they
+       are still next. This one is not out of the rota at all, so it is named for
+       what it is, and the second line reports how far in you have got rather than
+       what anybody wants. */
+    const p2=0.5+0.5*Math.sin(T*5);
+    const fs2=Math.round(Math.max(11,R*0.072));
+    ctx.font='700 '+fs2+'px ui-monospace,Menlo,monospace';
+    ctx.lineWidth=Math.max(4,fs2*0.3);
+    const who='SOMETHING WAS LEFT';
+    ctx.strokeStyle=INK; ctx.strokeText(who,x,CTR.y+CTR.h*2.4);
+    ctx.fillStyle=`rgba(255,211,92,${0.65+p2*0.35})`;
+    ctx.fillText(who,x,CTR.y+CTR.h*2.4);
+    const t2=['nobody is there  ·  open it',
+              'the string is off',
+              'light is coming out of it',
+              'there is something in there'][parcel.tear]||'';
+    ctx.font='700 '+fs+'px ui-monospace,Menlo,monospace';
+    ctx.lineWidth=Math.max(4,fs*0.3);
+    ctx.strokeStyle=INK; ctx.strokeText(t2,x,CTR.y+CTR.h*2.4+fs2*1.15);
+    ctx.fillStyle=parcel.tear>=2?LADLES[parcel.prize].wake:'#8ED96A';
+    ctx.fillText(t2,x,CTR.y+CTR.h*2.4+fs2*1.15);
+  }
+  else if(knocking){
     const p2=0.5+0.5*Math.sin(T*5);
     const fs2=Math.round(Math.max(11,R*0.072));
     ctx.font='700 '+fs2+'px ui-monospace,Menlo,monospace';
@@ -3906,6 +4320,162 @@ function drawCounter(){    /* the guest, framed in the hatch (or the star's rift
     ctx.fillStyle=serveFlash>0?'rgba(142,217,106,0.30)':'rgba(255,143,160,0.34)';
     ctx.fill(); ctx.restore();
   }
+}
+
+/* ══ THE PARCEL, DRAWN ══════════════════════════════════════════════════════
+   Everything here is built out of the game's own vocabulary — the ink outline,
+   the cached puff sprite the ladle's arrival already uses, embers from the
+   firebox, and the ladle's own five colours. There is no new art in this
+   feature and there is no new draw code for the prize: it is the tool you
+   already hold, painted from a different row of the table.
+
+   It sits in the hatch, clipped to the opening, exactly where a guest leans in
+   — because that is what it replaced. */
+function drawParcel(){
+  if(!parcel||parcel.st!=='wait') return;
+  const {x,w,h}=HATCH, top=HATCH.bottom-h;
+  const K=LADLES[parcel.prize];
+  const s=CTR.s*0.80;                          // half-width of the box
+  const py=CTR.y-s*0.86;                       // standing on the ledge
+  const k=parcel.kick;
+  /* IT BREATHES while it waits, and a tear SQUASHES it. The first click has to
+     feel structural or the other three read as a progress bar — so the whole
+     parcel gives and springs back rather than only changing what is drawn on
+     it. `k` decays in stepParcel, so this is one multiply per axis. */
+  const br=1+Math.sin(T*1.7)*0.015;
+  const sq=k*Math.cos(k*8.5);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x-w/2,top,w,h+CTR.h); ctx.clip();
+  ctx.translate(x,py); ctx.scale(br*(1+sq*0.20), br*(1-sq*0.17));
+
+  const box=()=>{ ctx.beginPath();
+    if(ctx.roundRect) ctx.roundRect(-s,-s*0.80,s*2,s*1.60,s*0.13);
+    else ctx.rect(-s,-s*0.80,s*2,s*1.60); };
+  shape(box, s, '#D9CBB4', '#B9A894');
+
+  /* THE HAIRLINE AT THE FOLDS, and it is already the wrong colour for the room.
+     Almost nobody notices it on their first parcel and everybody notices it on
+     their third — which is the whole reason the prize is decided at the knock
+     rather than at the burst. */
+  const lit=[0.12,0.20,0.46,0.66][parcel.tear]||0.66;
+  ctx.save(); box(); ctx.clip();
+  ctx.lineWidth=Math.max(1.2,s*0.045); ctx.lineCap='round';
+  ctx.strokeStyle=rgba(K.wake,lit*(0.75+0.25*Math.sin(T*3.1)));
+  ctx.beginPath(); ctx.moveTo(0,-s*0.80); ctx.lineTo(0,s*0.80);
+  ctx.moveTo(-s,-s*0.06); ctx.lineTo(s,-s*0.06); ctx.stroke();
+  ctx.restore();
+
+  // the string, taut — and gone the instant you pull it
+  if(parcel.tear===0){
+    ctx.lineWidth=Math.max(1.6,s*0.075); ctx.lineCap='round';
+    ctx.strokeStyle='#6E5A46';
+    ctx.beginPath(); ctx.moveTo(0,-s*0.86); ctx.lineTo(0,s*0.86);
+    ctx.moveTo(-s*1.04,0); ctx.lineTo(s*1.04,0); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0,0,s*0.11,0,TAU);
+    ctx.fillStyle='#6E5A46'; ctx.fill();
+    ctx.lineWidth=Math.max(1.2,s*0.045); ctx.strokeStyle=INK; ctx.stroke();
+  }
+
+  /* THE TEAR ITSELF.  A corner on the second click, a peeled flap on the third,
+     and the gap is ragged rather than a clean wedge — the offsets are fixed, so
+     the same parcel does not shimmer a new edge every frame. */
+  if(parcel.tear>=2){
+    const d=parcel.tear>=3?1.0:0.52;
+    const rip=()=>{ ctx.beginPath();
+      ctx.moveTo(s*(1-1.05*d), -s*0.80);
+      ctx.lineTo(s*(1-0.62*d), -s*0.80+s*0.20*d);
+      ctx.lineTo(s*(1-0.30*d), -s*0.80+s*0.06*d);
+      ctx.lineTo(s, -s*0.80+s*0.34*d);
+      ctx.lineTo(s, -s*0.80+s*1.02*d);
+      ctx.lineTo(s*(1-0.36*d), -s*0.80+s*0.74*d);
+      ctx.closePath(); };
+    ctx.save(); rip(); ctx.clip();
+    ctx.fillStyle='#150E18'; ctx.fillRect(-s*2,-s*2,s*4,s*4);
+    const gr=ctx.createRadialGradient(s*0.66,-s*0.34,s*0.02,s*0.66,-s*0.34,s*1.30);
+    gr.addColorStop(0,rgba(K.wake,0.95)); gr.addColorStop(1,rgba(K.wake,0.06));
+    ctx.fillStyle=gr; ctx.fillRect(-s*2,-s*2,s*4,s*4);
+    /* SHAPE A BEAT BEFORE IDENTITY.  the third tear shows the thing in the gap
+       as an outline and nothing else. You get to guess, and guessing is worth
+       more than being told. */
+    if(parcel.tear>=3){
+      ctx.save(); ctx.translate(s*0.42,-s*0.02); ctx.rotate(-0.85);
+      paintLadle(s*0.26,K,{solid:'#150E18'});
+      ctx.restore();
+    }
+    ctx.restore();
+    rip(); ctx.lineWidth=Math.max(1.6,s*0.055);
+    ctx.strokeStyle=INK; ctx.stroke();
+    // and the light gets out into the room
+    const out=ctx.createRadialGradient(s*0.70,-s*0.34,s*0.05,s*0.70,-s*0.34,s*2.4);
+    out.addColorStop(0,rgba(K.wake,0.30*d)); out.addColorStop(1,rgba(K.wake,0));
+    ctx.fillStyle=out; ctx.fillRect(-s*3,-s*3,s*6,s*6);
+  }
+  ctx.restore();
+}
+/* THE ROOM GOES DOWN, AND THE HAZARDS DO NOT.  This is called BEFORE
+   drawHealth/drawWanted deliberately: "the kitchen dims around the parcel" is a
+   lovely beat and a four-second blackout over a pot at 90% is a lost run. The
+   boil ring and ABOUT TO BOIL OVER are painted on top of this wash at full
+   strength, so the drama never hides the one thing you might need to act on. */
+function drawDim(){
+  if(!parcel||parcel.st!=='show') return;
+  const T2=LTIER[LADLES[parcel.prize].tier];
+  if(T2.dim<=0) return;
+  const p=parcel.rev;
+  const a=T2.dim*(p<0.14?p/0.14 : p>0.74?Math.max(0,(1-p)/0.26) : 1);
+  ctx.save(); ctx.globalAlpha=clamp(a,0,1);
+  ctx.fillStyle='#0A060C'; ctx.fillRect(0,0,W,H);
+  ctx.restore();
+}
+/* AND THE THING RISES OUT OF IT.  Last in the frame, over everything. */
+function drawReveal(){
+  if(!parcel||parcel.st!=='show') return;
+  const K=LADLES[parcel.prize], T2=LTIER[K.tier];
+  const p=clamp(parcel.rev,0,1), x=HATCH.x;
+  /* THE WHITE-OUT IS A CUT.  It hides the swap from parcel to prize, so the
+     ladle never has to be seen sliding out from behind a piece of paper. */
+  if(p<0.16){
+    ctx.save(); ctx.globalAlpha=clamp(1-p/0.16,0,1);
+    ctx.fillStyle='#FFF3DC'; ctx.fillRect(0,0,W,H); ctx.restore();
+  }
+  const rise=1-Math.pow(1-clamp(p/0.55,0,1),3);
+  const y=CTR.y-CTR.h*0.5-HATCH.h*0.46*rise;
+  const s=CTR.s*0.26*(0.72+0.28*rise);
+  ctx.save();
+  ctx.globalAlpha=clamp(p>0.88?(1-p)/0.12:1,0,1);
+  // one rim light finds the edge of it — for His Ladle it is the only light left
+  const gl=ctx.createRadialGradient(x,y,s*0.20,x,y,s*5.0);
+  gl.addColorStop(0,rgba(K.wake,0.34+0.24*T2.dim)); gl.addColorStop(1,rgba(K.wake,0));
+  ctx.fillStyle=gl; ctx.fillRect(x-s*5.2,y-s*5.2,s*10.4,s*10.4);
+  /* ONE ARC OF ITS OWN WAKE.  A skin is a wake with a ladle attached — it is the
+     one part of it the broth cannot wash 62% orange — so the reveal shows you
+     the wake before you ever stir with it. */
+  ctx.beginPath();
+  ctx.arc(x,y+s*0.4,s*2.5,Math.PI*1.10,Math.PI*1.10+Math.PI*0.62*rise);
+  ctx.lineCap='round'; ctx.lineWidth=Math.max(2,s*0.30);
+  ctx.strokeStyle=rgba(K.wake,0.55*rise); ctx.stroke();
+  ctx.save();
+  ctx.translate(x,y); ctx.rotate(-0.62+0.12*Math.sin(T*1.4));
+  paintLadle(s,K,{});
+  ctx.restore();
+  // and then it takes its name
+  if(p>0.32){
+    const fs=Math.round(Math.max(11,R*0.062));
+    const na=clamp((p-0.32)/0.18,0,1);
+    ctx.globalAlpha=clamp((p>0.88?(1-p)/0.12:1)*na,0,1);
+    ctx.font='700 '+fs+'px ui-monospace,Menlo,monospace';
+    ctx.textAlign='center'; ctx.lineWidth=Math.max(4,fs*0.3); ctx.lineJoin='round';
+    const ny=CTR.y+CTR.h*2.4;
+    ctx.strokeStyle=INK; ctx.strokeText(K.name.toUpperCase(),x,ny);
+    ctx.fillStyle=K.wake; ctx.fillText(K.name.toUpperCase(),x,ny);
+    const sub=topLadle()?'THE LAST ONE. NOTHING ELSE WILL COME.'
+                        :'IT IS YOURS. NOTHING ELSE CHANGED.';
+    ctx.font='700 '+Math.round(fs*0.82)+'px ui-monospace,Menlo,monospace';
+    ctx.lineWidth=Math.max(3,fs*0.26);
+    ctx.strokeStyle=INK; ctx.strokeText(sub,x,ny+fs*1.35);
+    ctx.fillStyle='#B9A7B4'; ctx.fillText(sub,x,ny+fs*1.35);
+  }
+  ctx.restore();
 }
 
 const SHOUT={
@@ -4116,7 +4686,10 @@ function onStove(x,y){
 cv.addEventListener('pointerdown',e=>{ const p=loc(e);
   ptr.x=p.x;ptr.y=p.y;ptr.down=true;
   if(bookOpen||treeOpen||cardOpen||codexOpen) return;
-  if(onDoor(p.x,p.y)&&letThemIn()){ ptr.mode='door'; }
+  /* ONE HATCH, TWO VERBS.  Tearing is tried first and both are guarded, so a
+     click on the hatch can never fall through to the ladle — flinging the tool
+     at the parcel you were opening is exactly the bug this ordering prevents. */
+  if(onDoor(p.x,p.y)&&(tearParcel()||letThemIn())){ ptr.mode='door'; }
   else if(onStove(p.x,p.y)){ ptr.mode='stoke'; throwLog(); }
   else {
     ptr.mode='drag'; dragging=true; ladleIn=0; simmering=false;
@@ -4138,14 +4711,14 @@ cv.addEventListener('pointerdown',e=>{ const p=loc(e);
       puff(p.x+Math.cos(a2)*d2, p.y+Math.sin(a2)*d2*YS,
         { vx:Math.cos(a2)*rnd(220,520), vy:Math.sin(a2)*rnd(90,240)-70,
           r0:R*0.05, r1:R*rnd(0.38,0.88), life:rnd(0.26,0.52),
-          c:i%4===0?A.brothHi:'#FFF6E2', a:rnd(0.45,0.78) });
+          c:i%4===0?A.brothHi:skin().puff, a:rnd(0.45,0.78) });
     }
     for(let i=1;i<=6;i++){                       // the wake it came in on
       const q2=i/6;
       puff(p.x+R*0.55*q2+rnd(-8,8), p.y+R*0.45*q2+rnd(-6,6),
         { vx:rnd(-70,70), vy:-rnd(30,80),
           r0:R*0.03, r1:R*(0.16+0.28*q2), life:rnd(0.20,0.40),
-          a:0.42*(1-q2*0.40) });
+          c:skin().puff, a:0.42*(1-q2*0.40) });
     }
     // two shockwave rings, one hard and one wide — this is what sells it
     waves.push({x:p.x,y:p.y,t:0,s:R*0.42,big:1});
@@ -5373,9 +5946,41 @@ function drawWake(){
     const a=wake[i-1], b=wake[i];
     ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
     ctx.lineWidth=Math.max(1.5,R*0.075*b.t*(0.35+b.w));
-    ctx.strokeStyle=`rgba(255,245,215,${0.42*b.t*(0.3+b.w)})`;
+    /* THE WAKE IS THE SKIN. It is drawn ON the broth rather than through it, so
+       it is the one thing a ladle owns that the 62% orange wash cannot take
+       away — which is why no two rungs of the ladder share a wake colour. */
+    ctx.strokeStyle=rgba(skin().wake,0.42*b.t*(0.3+b.w));
     ctx.stroke();
   }
+  ctx.restore();
+}
+/* ══ THE TOOL, AT THE ORIGIN, FROM ONE ROW OF THE TABLE ═════════════════════
+   Every ladle in the game comes out of here: the one in your hand, the outline
+   in the third tear of a parcel, and the prize rising out of the fourth. Which
+   is the point of the skins being six constants — there is one ladle in this
+   file and seven ways to colour it, rather than seven ladles to keep in step.
+     · `C`     a colour transform. drawLadle passes the broth mix so a submerged
+               bowl reads as being seen THROUGH the soup;
+     · `solid` paints the whole thing one flat colour — the silhouette;
+     · `hl`    handle length, because an upgraded bowl keeps its handle.
+   THE KNOB NEVER TAKES `C`. It rides above the waterline in almost every frame
+   of a stir, so it is the one part of a skin that keeps its colour at the moment
+   the player cares — running it through the 62% orange mix like the rest was the
+   difference between His Ladle reading as black-and-gold and reading as another
+   orange spoon. */
+function paintLadle(s,K,o){
+  o=o||{};
+  const hl=o.hl||3.6, C=o.solid?()=>o.solid:(o.C||(c=>c));
+  limb(s*0.5,0, s*hl,-s*0.55, s*0.42, C(K.handle));
+  ctx.beginPath(); ctx.arc(s*hl,-s*0.55,s*0.33,0,TAU);
+  ctx.fillStyle=o.solid||K.knob; ctx.fill();
+  ctx.lineWidth=Math.max(1.8,s*0.19); ctx.strokeStyle=INK; ctx.stroke();
+  ctx.save(); ctx.scale(1,0.84);
+  shape(()=>{ ctx.ellipse(0,0,s*1.3,s*1.1,0,0,TAU); }, s*1.25,
+        C(K.bowl), o.solid?null:C(K.rim));
+  ctx.beginPath(); ctx.ellipse(-s*0.08,-s*0.04,s*0.78,s*0.66,0,0,TAU);
+  ctx.fillStyle=C(K.inner); ctx.fill();
+  ctx.lineWidth=Math.max(1.6,s*0.17); ctx.strokeStyle=INK; ctx.stroke();
   ctx.restore();
 }
 function drawLadle(){
@@ -5387,21 +5992,12 @@ function drawLadle(){
   /* the whole tool, drawn in its own frame. `wet` tints it toward the broth so
      the submerged pass reads as being seen THROUGH the soup rather than just
      faded out. */
+  const K=skin();                              // whichever rung the ladder is on
   const body=(wet)=>{
-    const C=c=>wet?mix(c,A.broth,0.62):c;
     ctx.save();
     ctx.translate(ladle.x,ladle.y); ctx.rotate(ladle.ang);
-    limb(s*0.5,0, s*hl,-s*0.55, s*0.42, C('#C08A50'));
-    ctx.beginPath(); ctx.arc(s*hl,-s*0.55,s*0.33,0,TAU);
-    ctx.fillStyle=C('#C08A50'); ctx.fill();
-    ctx.lineWidth=Math.max(1.8,s*0.19); ctx.strokeStyle=INK; ctx.stroke();
-    ctx.save(); ctx.scale(1,0.84);
-    shape(()=>{ ctx.ellipse(0,0,s*1.3,s*1.1,0,0,TAU); }, s*1.25,
-          C('#D69A5C'), C('#9A6633'));
-    ctx.beginPath(); ctx.ellipse(-s*0.08,-s*0.04,s*0.78,s*0.66,0,0,TAU);
-    ctx.fillStyle=C('#A87039'); ctx.fill();
-    ctx.lineWidth=Math.max(1.6,s*0.17); ctx.strokeStyle=INK; ctx.stroke();
-    ctx.restore(); ctx.restore();
+    paintLadle(s,K,{hl, C:c=>wet?mix(c,A.broth,0.62):c});
+    ctx.restore();
   };
 
   if(sub<=0.02){                               // out of the broth: just the tool
@@ -6408,6 +7004,7 @@ function draw(under){
 
   drawDoor();
   drawCounter();
+  drawParcel();               // and sometimes it is not a guest in the hatch
   drawPotBack();
   drawLipAndBroth();
   ctx.save();
@@ -6435,9 +7032,13 @@ function draw(under){
   for(const it of items) if(it.st==='fly') drawItem(it,false);
   for(const it of held) drawItem(it,false);
   drawBuffThreads();
+  /* the reveal's blackout goes UNDER the two hazard readouts on purpose — see
+     drawDim(). The prize itself goes over everything, at the end of the frame. */
+  drawDim();
   drawHealth();
   drawWanted();
   drawShouts();
+  drawReveal();
   if(actT>0.01){
     const a=actT<0.22?actT/0.22:Math.min(1,(1-actT)*4.5);
     ctx.save(); ctx.globalAlpha=Math.max(0,Math.min(1,a));
@@ -7047,13 +7648,36 @@ document.getElementById('legbtn').onclick=()=>{
   setLegacy(true);
 };
 document.getElementById('closeleg').onclick=()=>setLegacy(false);
+/* ── the character sheet's two doors ──────────────────────────────────────────
+   The HUD's chef block is the real one: it is already the identity readout, it
+   already carries a live number, and clicking your own level to see your own
+   sheet needs no explaining. The menu keeps a row as well, because that menu is
+   where a player looks for a panel they have not found yet.
+
+   THE STARS PILL LIVES INSIDE THE DOOR, so its click has to be let through
+   rather than swallowed — it is a different destination (spend) from the block
+   around it (read), and it was there first. */
+{ const door=document.getElementById('chefdoor');
+  if(door){
+    const open=e=>{
+      if(e&&e.target&&e.target.closest&&e.target.closest('#chstars')) return;
+      setMenu(false); setSheet(true);
+    };
+    door.onclick=open;
+    /* it is a div with role=button, so it has to answer the two keys a real
+       button answers, or it is a control only a mouse can reach. */
+    door.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open(e); } };
+  } }
+{ const cb=document.getElementById('chefbtn');
+  if(cb) cb.onclick=()=>{ setMenu(false); setSheet(true); }; }
+document.getElementById('shclose').onclick=()=>setSheet(false);
 /* the pill is the shortest path from "you have a star" to "spend it" — which is
    the whole reason it is a button and not a caption. */
 { const sp=document.getElementById('chstars');
   if(sp) sp.onclick=()=>{ setMenu(false); setLegacy(true); }; }
 addEventListener('keydown',e=>{ if(legOpen&&e.key==='Escape') setLegacy(false); });
 addEventListener('keydown',e=>{
-  if(e.key==='Escape'){ setTree(false); setCodex(false); setGuests(false); setDbg(false); setMenu(false); setAch(false); }
+  if(e.key==='Escape'){ setTree(false); setCodex(false); setGuests(false); setDbg(false); setMenu(false); setAch(false); setSheet(false); }
 });
 
 let panelT=0;
@@ -7128,6 +7752,9 @@ function setAct(n){
   swirl=0;heat=0;broth=0;flav=[0,0,0];bubbles=[];boilNum=0;gainT=0;
   for(const u of UP) lv[u.id]=0; recalc(); logs=3; fire=0.35; buildTree();
   servedN=0; diner=null; doorT=0; rank=0; chosen=[]; dealt=[]; applyMods();
+  /* the parcel goes with the run; the LADLE does not — `ladleTier` lives in the
+     meta save, so a new run starts with whatever the ladder has reached. */
+  parcel=null; lastParcelAt=-99;
   dexSeen={}; dexCooked={}; dexNew=0; dexToast=null;
 }
 
@@ -7457,6 +8084,61 @@ if(DEV) window.__soup={
   knock(k){ if(!diner){ doorT=0; newDiner(k); return 'somebody is at the door'; }
            return 'already '+diner.st; },
   open(){ return letThemIn()?'they are coming in':'nobody is knocking'; },
+  /* ── the character sheet ───────────────────────────────────────────────────
+     `sheetRows()` returns what the panel ACTUALLY BUILT, read back off the DOM
+     it produced rather than recomputed — so `--sheet` compares the picture
+     against the game instead of comparing the game to itself, which is the
+     mistake `--orders` makes and the reason it cannot fail. */
+  sheet(v){ setSheet(v!==false); return sheetOpen; },
+  get sheetOpen(){ return sheetOpen; },
+  sheetRows(){
+    const out=[];
+    const walk=(el,depth)=>{
+      if(!el||!el.children) return;
+      for(const c of el.children){
+        const cls=(c.className||'')+'';
+        if(/\bshgrp\b|\bshr\b|\bshead\b|\bshcard\b|\bshacat\b|\bshrung\b|\bshledger\b|\bshadds\b/.test(cls)){
+          const txt=[];
+          const gather=n=>{ if(!n) return;
+            if(n.textContent) txt.push(n.textContent);
+            if(n.children) for(const k of n.children) gather(k); };
+          gather(c);
+          let pips=null;
+          const findPips=n=>{ if(!n||!n.children) return;
+            for(const k of n.children){
+              if(/\bshpips\b/.test((k.className||'')+'')){
+                pips={on:0,of:0};
+                for(const b of k.children){ pips.of++; if(/\bon\b/.test((b.className||'')+'')) pips.on++; }
+              } else findPips(k); } };
+          findPips(c);
+          out.push({cls:cls.trim(), text:txt.join(' ').trim(), pips});
+        }
+        walk(c,depth+1);
+      }
+    };
+    walk(document.getElementById('shcols'),0);
+    return out;
+  },
+  /* ── THE PARCEL ────────────────────────────────────────────────────────────
+     `ring()` fires the door through the REAL branch — parcelDue() and all four
+     of its gates — rather than summoning one, so a test of how often a parcel
+     turns up is a test of the shipping rule and not of a second copy of it. */
+  get runOver(){ return runOver; },
+  ring(){ if(runOver) return 'the run is over';
+          if(diner||parcel) return 'the door is busy';
+          doorT=0; if(parcelDue()){ newParcel(); return 'parcel'; }
+          newDiner(); return 'guest'; },
+  parcelNow(){ if(diner) return 'somebody is already at the door';
+               if(topLadle()) return 'the ladder is finished — nothing else comes';
+               doorT=0; newParcel(); return 'something was left at the door'; },
+  tear(){ return tearParcel()?'torn':'nothing to tear'; },
+  get parcel(){ return parcel?{st:parcel.st, tear:parcel.tear,
+                  prize:LADLES[parcel.prize].id, rev:+parcel.rev.toFixed(3)}:null; },
+  get ladle(){ const K=skin();
+    return {tier:ladleTier, id:K.id, name:K.name, rung:LTIER[K.tier].n,
+            rungs:LADLES.length, top:topLadle(), sinceParcel:servedN-lastParcelAt}; },
+  setLadle(n){ ladleTier=clamp(n|0,0,LADLES.length-1); saveMeta(); return skin().id; },
+  ladders(){ return LADLES.map(k=>({...k})); },
   seat(k){ newDiner(k); diner.st='wait'; diner.t=0; return diner.kind+' is seated'; },
   /* the stuck diagnosis, both halves: what it WOULD say, and what it is saying.
      `hint()` is the raw reading, `shown()` runs it through the STUCK_T gate —
@@ -7723,6 +8405,13 @@ const DBG=[
   {n:'Knock', f:()=>{ window.__soup.knock(); }, val:()=>window.__soup.who(),
    d:'Somebody arrives at the hatch — whoever is next in the running order.'},
   {n:'Open the hatch', f:()=>{ window.__soup.open(); }, d:'Let in whoever is knocking.'},
+  {n:'Leave a parcel', f:()=>{ devNote=window.__soup.parcelNow().toUpperCase(); devNoteT=1; },
+   val:()=>topLadle()?'ladder done':'next: '+LADLES[Math.min(LADLES.length-1,ladleTier+1)].id,
+   d:'Something is left at the hatch instead of a customer. Four clicks opens it and it hands you the next ladle up the ladder — cosmetic, always. In play it is one knock in eight or so, never within three serves of the last one, and never at all once the ladder is finished.'},
+  {n:'Put the ladle back', f:()=>{ window.__soup.setLadle(0);
+      devNote='LADLE: '+skin().name.toUpperCase(); devNoteT=1; },
+   val:()=>ladleTier+' of '+(LADLES.length-1)+' · '+skin().id,
+   d:'Back to the wooden spoon the kitchen came with, so the whole ladder can be climbed again. This writes the meta save.'},
   {n:'Fill their bowl', f:()=>{ window.__soup.serve(); },
    d:'Satisfies every rule on the current bowl: volume, palate, named ingredients, all three profiles.'},
   {n:'Ruin it', f:()=>{ window.__soup.ruin(); },
@@ -7925,7 +8614,7 @@ function newGame(){
   throwNote=0; scaldNote=0; crowdNote=0; devNoteT=0;
   paintDexBadge(); paintTree(); drawEdges();
   dropSave(SAVE);
-  setTree(false); setCodex(false); setGuests(false); setDbg(false); setMenu(false); setRestart(false);
+  setTree(false); setCodex(false); setGuests(false); setDbg(false); setMenu(false); setRestart(false); setSheet(false);
   setBook(true,0);                   // and the cookbook opens, as it would on a first run
 }
 function setRestart(v){
@@ -9076,11 +9765,257 @@ function tileFor(a){
   el.querySelector('.bl').textContent=hide?'A secret.':a.blurb;
   return el;
 }
+/* ══ THE CHARACTER SHEET ════════════════════════════════════════════════════
+   `sheet.html` is the study; this is Treatment A. It reads and never writes:
+   every row below is a view of `lv`, `ST`, `MOD`, `chosen`, `leg`, `chefExp`,
+   `ladleTier`, `EARNED` or `STATS`. No counter was added for it, and if a row
+   here ever wants a number the sim does not keep, that is a sign the number is
+   missing from the game rather than from the sheet.
+
+   It is defined down HERE, below the achievement catalog and the meta save,
+   because it reads them — the module-scope rule this file has been bitten by
+   four times applies to a panel builder as much as to the renderer. */
+let sheetOpen=false;
+/* WHO YOU ARE THIS TIME.  The fiction already says it — "the newest hand in a
+   kitchen that has been simmering the same pot since before there was a floor to
+   stand on" — so run N is the Nth hand to take it on. Costs one array and no
+   save field: `runNo` was already persisted. */
+const ORD=['','First','Second','Third','Fourth','Fifth','Sixth','Seventh','Eighth',
+  'Ninth','Tenth','Eleventh','Twelfth','Thirteenth','Fourteenth','Fifteenth',
+  'Sixteenth','Seventeenth','Eighteenth','Nineteenth','Twentieth'];
+function handName(n){ return 'The '+(ORD[n]||(n+'th'))+' Hand'; }
+/* a row of dots. `narrow` past twelve, because Boil Power's fourteen would
+   otherwise push the effect string off the end of the row. */
+function shPips(now,max,cls){
+  const w=document.createElement('span');
+  w.className='shpips'+(max>12?' narrow':'')+(cls?' '+cls:'');
+  for(let i=0;i<max;i++){ const b=document.createElement('b');
+    if(i<now) b.className='on'; w.appendChild(b); }
+  return w;
+}
+function shRow(name,now,max,eff){
+  const r=document.createElement('div');
+  r.className='shr'+(now>=max?' max':now<=0?' zero':'');
+  const n=document.createElement('span'); n.className='nm'; n.textContent=name;
+  const e=document.createElement('span'); e.className='eff';
+  e.textContent = now<=0 ? 'not bought' : eff;
+  r.appendChild(n); r.appendChild(shPips(now,max)); r.appendChild(e);
+  return r;
+}
+/* BUILT, NOT PARSED.  `innerHTML='<span></span>…'` and then `.firstChild` is the
+   pattern the achievement gallery uses, and it is one string edit away from a
+   null dereference — it also cannot be exercised by anything that stubs the DOM
+   without an HTML parser. Two createElements say the same thing and can be
+   tested. */
+function shHead(title,note){
+  const h=document.createElement('div'); h.className='shead';
+  const a=document.createElement('span'); a.textContent=title;
+  const b=document.createElement('span'); b.textContent=note;
+  h.appendChild(a); h.appendChild(b);
+  return h;
+}
+function shGroup(parent,title,note,cls){
+  const h=document.createElement('div');
+  h.className='shgrp'+(cls?' '+cls:'');
+  const a=document.createElement('span'); a.textContent=title;
+  const b=document.createElement('span'); b.className='n'; b.textContent=note;
+  h.appendChild(a); h.appendChild(b); parent.appendChild(h);
+  return h;
+}
+/* the trunk names come from the tree's own TRUNK — the sheet must never be able
+   to call a branch something the tree does not. */
+function buildSheet(){
+  const cols=document.getElementById('shcols'); if(!cols) return;
+  cols.innerHTML='';
+  const i=chefInfo(chefExp);
+  /* ── the band across the top ── */
+  setTxt(document.getElementById('shname'), handName(runNo));
+  setTxt(document.getElementById('shwhere'),
+         'run '+runNo+' · act '+act+' · '+(A.n||''));
+  setTxt(document.getElementById('shlvl'), 'Chef Level '+i.lv);
+  const xp=document.getElementById('shxp');
+  if(xp){ xp.querySelector('i').style.width=(i.into/Math.max(1,i.need)*100).toFixed(1)+'%';
+    setTxt(xp.querySelector('span'), i.into+' / '+i.need+' to Lv '+(i.lv+1)); }
+  const st=document.getElementById('shstars');
+  if(st){ st.hidden=!chefStars; setTxt(st,'★ '+chefStars+' to spend'); }
+  const K=skin();
+  setTxt(document.getElementById('shsub'),
+    'holding '+K.name+' · rung '+(ladleTier+1)+' of '+LADLES.length+
+    ' · '+(STATS.life.runsFinished||0)+' runs finished · '+
+    fmt(STATS.life.dinersServed||0)+' bowls out of this pot');
+
+  /* ═══ LEFT: what Start Over deletes ═══ */
+  const L=document.createElement('div'); L.className='shcol';
+  L.appendChild(shHead('This run','gone when you start over'));
+  for(const t of ['hand','pot','fire','word']){
+    const nodes=UP.filter(u=>u.t===t);
+    let got=0, all=0;
+    for(const u of nodes){ got+=lv[u.id]||0; all+=u.max; }
+    shGroup(L,TRUNK[t],got+' / '+all+' bought','t-'+t);
+    for(const u of nodes){
+      const n=lv[u.id]||0;
+      /* the node's OWN description, the same string the tree prints — so a
+         changed upgrade can never say two different things in two places. */
+      let eff=''; try{ eff=u.d?u.d(n):''; }catch(e){ eff=''; }
+      L.appendChild(shRow(u.n,n,u.max,eff));
+    }
+  }
+  const dealt=4+(leg.menu||0);
+  shGroup(L,'Recipe cards',chosen.length+' taken of '+dealt+' dealt');
+  if(!chosen.length){
+    const p=document.createElement('div'); p.className='shnone';
+    p.textContent='none yet — one is dealt when an act turns over.';
+    L.appendChild(p);
+  }
+  for(const k of chosen){
+    let t=k, d='';
+    for(const c of CARDS){ for(const side of ['a','b'])
+      if(c[side]&&c[side].k===k){ t=c[side].t; d=c[side].d; } }
+    const row=document.createElement('div'); row.className='shcard';
+    const pip=document.createElement('i'); pip.className='pip';
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=t;
+    const ef=document.createElement('span'); ef.className='ef'; ef.textContent=d;
+    row.appendChild(pip); row.appendChild(nm); row.appendChild(ef); L.appendChild(row);
+  }
+  /* THE ONE PLACE THE THREE SYSTEMS RESOLVE INTO NUMBERS.  The tree, the cards
+     and the reputation all feed `ST`, and until this panel existed nothing in
+     the game ever showed them added up. */
+  shGroup(L,'What it adds up to','the live numbers');
+  const adds=document.createElement('div'); adds.className='shadds';
+  const add=(label,val,up)=>{ const d=document.createElement('div');
+    const i2=document.createElement('i'); i2.textContent=label;
+    const b=document.createElement('b'); b.textContent=val;
+    if(up) b.className='up';
+    d.appendChild(i2); d.appendChild(b); adds.appendChild(d); };
+  add('ladle bowl', Math.round(ST.ladle*100)+'%', ST.ladle>1);
+  add('holds', String(Math.round(ST.hold)), ST.hold>1);
+  add('boil period', ST.period.toFixed(2)+'s', ST.period<7);
+  add('volume', String(Math.round(ST.pot)), ST.pot>8);
+  add('crowd cap', String(ST.crowd), ST.crowd>24);
+  add('tier window', '+'+ST.tier.toFixed(2), ST.tier>0);
+  add('allure floor', '+'+Math.round(ST.allureB*100)+'%', ST.allureB>0);
+  add('lid seals', Math.round(ST.seal*100)+'%', ST.seal>0);
+  add('tips', '×'+(MOD.tipMul*ST.hardy).toFixed(2), MOD.tipMul*ST.hardy>1);
+  add('orders', '×'+MOD.needMul.toFixed(2), false);
+  L.appendChild(adds);
+  cols.appendChild(L);
+
+  /* ═══ RIGHT: what it never touches ═══ */
+  const R=document.createElement('div'); R.className='shcol';
+  R.appendChild(shHead('Forever','survives Start Over'));
+  let spent=0, allStars=0;
+  for(const n of LEG){ spent+=(leg[n.id]||0)*n.cost; allStars+=n.max*n.cost; }
+  shGroup(R,'The Reputation',
+    spent+' / '+allStars+' stars spent'+(chefStars?' · ★'+chefStars+' unspent':''),'t-hand');
+  for(const n of LEG){
+    const l=leg[n.id]||0;
+    let eff=''; try{ eff=n.d?n.d(l):''; }catch(e){ eff=''; }
+    R.appendChild(shRow(n.n,l,n.max,eff));
+  }
+  shGroup(R,'The ladder of ladles','rung '+(ladleTier+1)+' of '+LADLES.length);
+  const lad=document.createElement('div'); lad.className='shladder';
+  for(let r=0;r<LADLES.length;r++){
+    const rung=document.createElement('div');
+    const have=r<=ladleTier;
+    rung.className='shrung'+(r===ladleTier?' now':have?' has':' locked');
+    const cv2=document.createElement('canvas'); cv2.width=cv2.height=68;
+    rung.appendChild(cv2);
+    const lb=document.createElement('div'); lb.className='lb';
+    /* THE ONE YOU HAVE NOT EARNED KEEPS ITS NAME BACK. A silhouette and a
+       question mark is the same tease the parcel's third tear plays. */
+    lb.textContent = have ? LADLES[r].id : '?';
+    rung.appendChild(lb); lad.appendChild(rung);
+    paintRung(cv2, LADLES[r]);
+  }
+  R.appendChild(lad);
+  if(!topLadle()){
+    const p=document.createElement('div'); p.className='shnone';
+    p.textContent='something is left at the door now and then. '+
+      (LADLES.length-1-ladleTier)+' to go.';
+    R.appendChild(p);
+  }
+  shGroup(R,'Achievements',EARNED.size+' of '+ACH.length);
+  const bar=document.createElement('div'); bar.id='shabar';
+  const fill=document.createElement('i');
+  const pct=ACH.length?EARNED.size/ACH.length*100:0;
+  fill.style.width=pct.toFixed(1)+'%';
+  const lab=document.createElement('span'); lab.textContent=Math.round(pct)+'%';
+  bar.appendChild(fill); bar.appendChild(lab); R.appendChild(bar);
+  const cats=document.createElement('div'); cats.className='shacats';
+  const byCat={}; for(const a of ACH){ (byCat[a.cat]||(byCat[a.cat]=[])).push(a); }
+  for(const cat of CAT_ORDER){
+    const list=byCat[cat]; if(!list||!list.length) continue;
+    const got=list.filter(a=>EARNED.has(a.id)).length;
+    const row=document.createElement('div'); row.className='shacat';
+    const i2=document.createElement('i'); i2.textContent=CAT_TITLE[cat]||cat;
+    const b=document.createElement('span'); b.className='b';
+    const em=document.createElement('em'); em.style.width=(got/list.length*100).toFixed(1)+'%';
+    b.appendChild(em);
+    const n=document.createElement('b'); n.textContent=got+'/'+list.length;
+    row.appendChild(i2); row.appendChild(b); row.appendChild(n); cats.appendChild(row);
+  }
+  R.appendChild(cats);
+  shGroup(R,'The ledger','since the first bowl');
+  const led=document.createElement('div'); led.className='shledger';
+  const S=STATS.life, B=STATS.best;
+  const put=(label,val)=>{ const d=document.createElement('div');
+    const i2=document.createElement('i'); i2.textContent=label;
+    const b=document.createElement('b'); b.textContent=val;
+    d.appendChild(i2); d.appendChild(b); led.appendChild(d); };
+  const secs=Math.max(0,Math.round(S.secondsPlayed||0));
+  put('runs finished', String(S.runsFinished||0));
+  put('bowls served', fmt(S.dinersServed||0));
+  put('things cooked', fmt(S.pops||0));
+  put('broth earned', fmt(S.brothEarned||0));
+  put('sent back', String(S.sendBacks||0));
+  put('perfect dives', String(S.divesPerfect||0));
+  put('walked in willingly', fmt(S.entriesWilling||0));
+  put('upgrades bought', String(S.upgradesBought||0));
+  put('best single pop', fmt(B.singlePop||0));
+  put('most in one run', String(B.mostServedRun||0));
+  put('time at the pot', Math.floor(secs/3600)+'h '+Math.floor(secs%3600/60)+'m');
+  put('endings seen', (S.endWorld||0)+' world · '+(S.endPot||0)+' pot');
+  R.appendChild(led);
+  cols.appendChild(R);
+}
+/* one rung of the ladder, drawn with the game's own ladle. `paintLadle` takes
+   the ctx it is handed through the module-level `ctx`, so it is swapped and put
+   back — the same borrow the codex and the guest cards do. */
+function paintRung(cv2,K){
+  const c2=cv2.getContext('2d'); if(!c2) return;
+  const keep=ctx;
+  try{
+    ctx=c2;
+    ctx.clearRect(0,0,cv2.width,cv2.height);
+    ctx.save();
+    ctx.translate(cv2.width*0.30, cv2.height*0.66);
+    ctx.rotate(-0.55);
+    paintLadle(cv2.width*0.115, K, {});
+    ctx.restore();
+  }catch(e){ /* a decoration must never be able to throw */ }
+  ctx=keep;
+}
+function setSheet(v){
+  sheetOpen=v;
+  const el=document.getElementById('sheet'); if(!el) return;
+  el.classList.toggle('on',v);
+  el.setAttribute('aria-hidden',String(!v));
+  if(v){
+    /* drop whatever is in the ladle, the way every other panel does — a hand
+       still holding three turnips behind an overlay loses them on the next
+       click somewhere it cannot see. */
+    if(dragging){ dragging=false; ptr.down=false; ptr.mode=null;
+      for(const it of held) it.st='loose'; held=[];
+      document.body.classList.remove('drag'); }
+    buildSheet();
+  }
+}
+
 /* ── meta save ── */
 function saveMeta(){ if(preMax||blocked[AMETA]) return;
   try{ localStorage.setItem(AMETA,JSON.stringify({ v:META_V, runNo,
     stats:STATS, achieved, chefExp, chefLevel, stars:chefStars,
-    legacy:leg, carry:legCarry })); }catch(e){}
+    legacy:leg, carry:legCarry, ladle:ladleTier })); }catch(e){}
 }
 function loadMeta(){
   /* the meta is read with its OWN call, so a run save this build cannot read —
@@ -9095,6 +10030,11 @@ function loadMeta(){
   if(d.legacy) for(const n of LEG){ const v=d.legacy[n.id];
     leg[n.id]=Math.max(0,Math.min(n.max, typeof v==='number'?v:0)); }
   legCarry=Math.max(0,d.carry||0);
+  /* CLAMPED TO THE TABLE, not trusted. A saved rung is an index into LADLES, and
+     a blob from a build with more rungs than this one — or a hand-edited one —
+     must land on a row that exists rather than paint `undefined` colours all
+     over the pot. */
+  ladleTier=Math.max(0,Math.min(LADLES.length-1, typeof d.ladle==='number'?d.ladle|0:0));
   if(d.stats){ const def=defaultStats();
     for(const sc of ['life','run','best']) STATS[sc]=Object.assign(def[sc], d.stats[sc]||{}); }
   if(Array.isArray(d.achieved)){ achieved=d.achieved.filter(r=>r&&r.id);
@@ -9127,8 +10067,15 @@ const SAVE='greatsoup.v1', AWAY_CAP=3600, AWAY_RATE=0.34;
         key is BLOCKED: we refuse to load it and we refuse to write over it. Open
         the newer build and the save is still there.
    ═════════════════════════════════════════════════════════════════════════════ */
-const SAVE_V=1, META_V=1;
-const MIGRATE={ [SAVE]:{}, [AMETA]:{} };
+/* META v2 ADDS THE LADDER.  A defaulting read would have worked without a bump
+   — `d.ladle||0` — and it would have been the wrong call: an OLDER build reading
+   a v1 meta happily rewrites it without the field, so six parcels' worth of
+   ladder would vanish the moment somebody opened an older copy. At v2 the older
+   build refuses to touch it instead, which is the whole reason the version field
+   exists. The migration is the honest one: a kitchen that has never seen a
+   parcel is on rung 0. */
+const SAVE_V=1, META_V=2;
+const MIGRATE={ [SAVE]:{}, [AMETA]:{ 1:d=>({...d, ladle:0}) } };
 const blocked={ [SAVE]:false, [AMETA]:false };
 /* returns the blob at the current version, or null if it must not be touched */
 function readSave(key,cur){
