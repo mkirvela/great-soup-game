@@ -1595,18 +1595,42 @@ CHR.rat = (s,m)=>{
   eyes(-s*0.1, s*0.22, s*0.13, m.mood, m.look);
 };
 
+/* ── FOUR HOOKS, ALL OFF BY DEFAULT ──────────────────────────────────────────
+   `bard.html` found that this function hard-codes both arms in the same raised
+   pose, so the one ingredient drawn holding an instrument cannot actually hold
+   it. Four options fix that and nothing else changes shape:
+     o.arms    'none' (the caller draws them itself, in front of the torso) or
+               an array of [x1,y1,x2,y2] limbs in units of s
+     o.tilt    head rotation, about its own base — so it can tip back on a high
+               note without taking the torso with it
+     o.open    mouth, 0..1 — open in proportion to pitch and held through a
+               long note
+     o.footL/R a foot tapping the beat
+   Every existing caller passes none of them and is drawn exactly as before. */
 function humanoid(s,m,o){
   const w=o.w||1;
-  limb(-s*0.16,s*0.6,-s*0.24,s*1.02,s*0.15,o.legs);       // legs
-  limb( s*0.16,s*0.6, s*0.24,s*1.02,s*0.15,o.legs);
-  const sw = m.mood==='panic'? Math.sin(T*16)*s*0.3 : 0;
-  limb(-s*0.42*w,-s*0.1,-s*0.78*w-sw,-s*0.5+Math.abs(sw)*0.4,s*0.15,o.body); // arms up
-  limb( s*0.42*w,-s*0.1, s*0.78*w+sw,-s*0.5+Math.abs(sw)*0.4,s*0.15,o.body);
+  limb(-s*0.16,s*0.6,-s*0.24+(o.footL||0)*s,s*1.02,s*0.15,o.legs);       // legs
+  limb( s*0.16,s*0.6, s*0.24+(o.footR||0)*s,s*1.02,s*0.15,o.legs);
+  if(o.arms==='none'){ /* drawn by the caller, over the torso */ }
+  else if(o.arms){ for(const a of o.arms) limb(a[0]*s,a[1]*s,a[2]*s,a[3]*s,s*0.15,o.body); }
+  else {
+    const sw = m.mood==='panic'? Math.sin(T*16)*s*0.3 : 0;
+    limb(-s*0.42*w,-s*0.1,-s*0.78*w-sw,-s*0.5+Math.abs(sw)*0.4,s*0.15,o.body); // arms up
+    limb( s*0.42*w,-s*0.1, s*0.78*w+sw,-s*0.5+Math.abs(sw)*0.4,s*0.15,o.body);
+  }
   shape(()=>{ ctx.moveTo(-s*0.44*w,-s*0.28);              // torso
     ctx.quadraticCurveTo(-s*0.56*w,s*0.34,-s*0.34*w,s*0.66);
     ctx.lineTo(s*0.34*w,s*0.66);
     ctx.quadraticCurveTo(s*0.56*w,s*0.34,s*0.44*w,-s*0.28);
     ctx.closePath(); }, s, o.body, o.bodyLo);
+  /* THE HEAD TURNS INSIDE ITS OWN FRAME, about its base rather than its centre,
+     so `o.tilt` tips the face back and leaves the neck where it was.
+     AND THE HELM NO LONGER `return`s FROM IN HERE. It used to, which was
+     harmless while nothing was saved above it and is a leaked save per frame
+     now — precisely the class the save/restore balance check exists for. It is
+     an if/else, and the knight is drawn exactly as before. */
+  ctx.save();
+  ctx.translate(0,-s*0.30); ctx.rotate(o.tilt||0); ctx.translate(0,s*0.30);
   shape(()=>{ ctx.ellipse(0,-s*0.62,s*0.38,s*0.36,0,0,TAU); }, s, o.skin, o.skinLo); // head
   if(o.hat==='cap'){ shape(()=>{ ctx.moveTo(-s*0.5,-s*0.86);
       ctx.quadraticCurveTo(0,-s*1.24,s*0.5,-s*0.86); ctx.closePath(); }, s, o.hatCol); }
@@ -1624,15 +1648,20 @@ function humanoid(s,m,o){
     ctx.beginPath(); ctx.moveTo(0,-s*1.14);
     ctx.quadraticCurveTo(s*0.34,-s*1.6,-s*0.06,-s*1.5); ctx.closePath();
     ctx.fillStyle=o.plume||'#D8484F'; ctx.fill(); ctx.stroke();
-    return;
+  } else {
+    if(o.halo){
+      ctx.beginPath(); ctx.ellipse(0,-s*1.1,s*0.44,s*0.15,0,0,TAU);
+      ctx.lineWidth=thick(s)*1.5; ctx.strokeStyle=A.brothHi; ctx.stroke();
+      ctx.lineWidth=thick(s)*0.5; ctx.strokeStyle=INK; ctx.stroke();
+    }
+    eyes(-s*0.64, s*0.15, s*0.105, m.mood, m.look);
+    /* SINGING BEATS PANICKING. A held ingredient's mood is 'panic', and the
+       performer is held — so without this order the one thing he is doing is
+       overdrawn by the mouth of someone being carried off. */
+    if(o.open>0.02) mouthO(-s*0.42, s*0.042+s*0.082*o.open);
+    else if(m.mood==='panic') mouthO(-s*0.42,s*0.085);
   }
-  if(o.halo){
-    ctx.beginPath(); ctx.ellipse(0,-s*1.1,s*0.44,s*0.15,0,0,TAU);
-    ctx.lineWidth=thick(s)*1.5; ctx.strokeStyle=A.brothHi; ctx.stroke();
-    ctx.lineWidth=thick(s)*0.5; ctx.strokeStyle=INK; ctx.stroke();
-  }
-  eyes(-s*0.64, s*0.15, s*0.105, m.mood, m.look);
-  if(m.mood==='panic') mouthO(-s*0.42,s*0.085);
+  ctx.restore();
 }
 CHR.peasant  = (s,m)=>humanoid(s,m,{body:m.c1,bodyLo:m.cl,legs:m.c3,skin:m.c2,skinLo:m.cl,hat:'cap',hatCol:m.c3});
 CHR.merchant = (s,m)=>humanoid(s,m,{w:1.5,body:m.c1,bodyLo:m.cl,legs:m.c3,skin:m.c2,skinLo:m.cl,hat:'tall',hatCol:m.c3});
@@ -1984,24 +2013,279 @@ CHR.goose = (s,m)=>{
     ctx.quadraticCurveTo(-s*1.10,-s*0.44-stab*s*0.12,-s*0.74,s*0.30);
     ctx.closePath(); }, s, m.c1, m.cl);
 };
-CHR.bard = (s,m)=>{
-  humanoid(s,m,{body:m.c1,bodyLo:m.cl,legs:m.c3,skin:m.c2,skinLo:m.cl,hat:'cap',hatCol:m.c3});
-  ctx.save(); ctx.translate(s*0.62,s*0.10); ctx.rotate(-0.5);
+/* ── ONE LUTE, TWO POSES ─────────────────────────────────────────────────────
+   `bard.html`'s second finding. Slung, the neck-tip lands at (0.18s,-0.91s) —
+   straight through the middle of his head. At s:31 in a crowd that overlap is
+   two pixels and reads as "lute over shoulder"; at performance size it reads as
+   a stick through his face. So playing is a different transform on the same art:
+   the body drops to his right hip and the neck lies back across him, which
+   clears the head and — the actual point — puts the neck where the LEFT hand can
+   fret it and the body where the RIGHT hand can strum it. */
+function lute(s,playing){
+  ctx.save();
+  if(playing){ ctx.translate(s*0.44,s*0.34); ctx.rotate(-1.15); }
+  else       { ctx.translate(s*0.62,s*0.10); ctx.rotate(-0.5);  }
   shape(()=>{ ctx.ellipse(0,0,s*0.34,s*0.44,0,0,TAU); }, s, '#B07A46','#8A5A2E');
   limb(0,-s*0.40,s*0.10,-s*1.10,s*0.10,'#B07A46');
   ctx.lineWidth=Math.max(1,s*0.035); ctx.strokeStyle='#F4E7C8';
   for(let i=-1;i<=1;i++){ ctx.beginPath();
     ctx.moveTo(i*s*0.10,-s*1.02); ctx.lineTo(i*s*0.10+s*0.02,s*0.20); ctx.stroke(); }
   ctx.restore();
+}
+/* his quaver, lifted out so it can be emitted on a note ONSET rather than on a
+   free-running phase — which is the whole difference between a puppet flapping
+   and something that looks like it is playing a tune. */
+function quaver(x,y,s,a){
+  ctx.beginPath(); ctx.ellipse(x,y,s*0.10,s*0.08,-0.4,0,TAU);
+  ctx.fillStyle=`rgba(255,211,92,${a})`; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x+s*0.09,y); ctx.lineTo(x+s*0.09,y-s*0.28);
+  ctx.lineWidth=Math.max(1,s*0.045);
+  ctx.strokeStyle=`rgba(255,211,92,${a})`; ctx.stroke();
+}
+/* ══ THE BARD PLAYS ═════════════════════════════════════════════════════════
+   He is already the only ingredient who does something for the others — `buff`
+   makes everything near him worth more while he lives — and the fiction has
+   always said he sings. The game has never once shown him doing it.
+
+   THE TRIGGER IS STILLNESS, and it is cheaper and better-defined than the one
+   `bard.html` designed for. The study keyed on spinning the pot, and named its
+   own blocker: *"He has to survive the performance. Coming out and going back in
+   is a state the sim has no word for — not loose, not in the pot, not escaped."*
+   Riding in the ladle IS a state the sim has a word for. He is `held`. Nothing
+   new has to exist for him to be somewhere safe.
+
+   AND IT COSTS SOMETHING WITHOUT CHARGING ANYTHING. Standing still with a bard
+   in the bowl is a stir you are not doing: the swirl decays, the pot cools off
+   the boil, and the bard is out of the broth rather than dissolving in it. So
+   the performance needs no cooldown, no rate limit and no once-a-run gate — the
+   opportunity cost IS the limit, and it scales with how good your kitchen is.
+   The study's last note was "it must not be a reward", and this pays nothing at
+   all: `buff` already covers what he is worth. */
+const BARD_STILL=110;     // px/s the ladle may drift and still count as steady
+const BARD_WAKE=4.5;      // he starts tuning up here — the tell
+const BARD_PLAY=7.0;      // and plays here
+const BARD_SHOW=20.0;     // and the song runs this long, whatever you do next
+/* EIGHT NOTES: scale degree, and how many beats it is held. Everything that
+   moves reads these two numbers, which is the whole difference between a puppet
+   flapping and something that looks like it is playing music. Twelve beats, so
+   at 120bpm the phrase is six seconds — long enough not to read as a two-frame
+   loop, short enough that you hear it come round and know it is a tune. */
+const BTUNE=[{d:0,b:1},{d:2,b:1},{d:4,b:2},{d:2,b:1},
+             {d:5,b:1},{d:4,b:2},{d:2,b:1},{d:0,b:3}];
+const BBEATS=BTUNE.reduce((n,x)=>n+x.b,0), BBPM=120;
+function bardNote(t){
+  const beat=t*BBPM/60, pos=((beat%BBEATS)+BBEATS)%BBEATS;
+  let acc=0,i=0;
+  for(;i<BTUNE.length;i++){ if(pos<acc+BTUNE[i].b) break; acc+=BTUNE[i].b; }
+  if(i>=BTUNE.length){ i=BTUNE.length-1; acc=BBEATS-BTUNE[i].b; }
+  const n=BTUNE[i];
+  return { i, d:n.d, held:n.b>=2, into:(pos-acc)/n.b,
+           sinceOnset:(pos-acc)*60/BBPM, beat };
+}
+let bardStill=0, bardT=0, bardIt=null, bardWaitIt=null, bardBeat=0;
+let bardFX={rings:[],quavers:[],lastNote:-1,lastBeat:-1};
+let bardPose={strum:0,fret:0,open:0,tilt:0,bob:0,foot:0,held:false};
+const bardWake=()=>clamp((bardStill-BARD_WAKE)/(BARD_PLAY-BARD_WAKE),0,1);
+/* HOW LOUD HE IS, 0..1 — up through the leap, held for the whole song, and out
+   over the last beat so the end is a diminuendo rather than a cut. Everything
+   about the performance is scaled by this: his size, the rings, the glow. */
+function bardLoud(){
+  if(!bardIt) return 0;
+  const t=bardIt.showT;
+  return Math.min(1,t/0.55)*clamp((BARD_SHOW-t)/0.8,0,1);
+}
+/* ── HE JUMPS OUT ───────────────────────────────────────────────────────────
+   A NEW STATE, and it is the one `bard.html` said the sim had no word for:
+   `st:'show'`. He is not held, not loose, not in the pot and not flying. Three
+   things fall out of that for free, and they are exactly the three that were
+   asked for — nothing can scoop him (the scoop only looks at 'loose'), the ladle
+   cannot shove or chop him (that only looks at 'float'/'sunk'), and he does not
+   dissolve, because every line that cooks something is inside a branch he is not
+   in. The one place that needs telling is the item loop, which skips him.
+
+   AND HE TAKES HIS OWN STAGE. The point of leaving the ladle is that he stops
+   being carried: the spot is captured from where the bowl was at the moment he
+   leapt, and he stays there while you go back to cooking. */
+function bardStart(it){
+  const i=held.indexOf(it); if(i>=0) held.splice(i,1);
+  it.st='show'; it.showT=0;
+  it.jx=it.x; it.jy=it.y;                          // where he pushed off from
+  it.sx=ladle.x; it.sy=ladle.y-R*1.05;             // and where he ends up
+  bardIt=it; bardWaitIt=null; bardStill=0;
+  bardT=0; bardFX={rings:[],quavers:[],lastNote:-1,lastBeat:-1};
+  shouts.push({x:it.x,y:it.y-it.K.s*1.5,t:0,txt:pick(SHOUT.bard),quiet:false});
+  if(shouts.length>7) shouts.shift();
+  /* the leap, in the game's own particles: a puff off the bowl he pushed against
+     and a few gold sparks, because a jump with no reaction reads as teleporting. */
+  for(let k=0;k<14;k++){ const a=Math.random()*TAU;
+    puff(it.x,it.y,{ vx:Math.cos(a)*rnd(40,150), vy:Math.sin(a)*rnd(20,90)+40,
+      r0:R*0.015, r1:R*rnd(0.06,0.16), life:rnd(0.25,0.5), a:rnd(0.25,0.5) }); }
+  for(let k=0;k<12;k++){ const a=Math.random()*TAU, v=rnd(1.4,4.2);
+    sparks.push({x:it.x,y:it.y,vx:Math.cos(a)*v,vy:Math.sin(a)*v*YS-1.2,
+                 life:1,c:'#FFD35C'}); }
+  aBump('bardSongs');
+}
+/* and at the end he drops back into the world, through the machinery every
+   other airborne thing already uses — so he lands in the pot if he is over it
+   and on the deck if he is not, and the dive gets scored either way. */
+function bardBow(it){
+  it.st='fly'; it.noAssist=false; it.guided=false; it.solved=false;
+  it.z=R*0.10; it.vz=40; it.vx=rnd(-70,70); it.vy=0;
+  it.rot=0; it.spun=0; it.rotV=rnd(-2.2,2.2); it.mult=1; it.bounce=1;
+  it.dy=clamp(it.y+R*0.35, HZ+R*0.20, STOVE.topY-R*0.22);
+  it.climb=0; it.depth=0;
+  bardIt=null;
+}
+function stepBard(dt){
+  /* A SHOW RUNS ON ITS OWN CLOCK and gives your hand back. Seven seconds of
+     holding still buys twenty seconds of song, and you are free the whole time
+     — which is what makes the price a price rather than a hostage situation. */
+  if(bardIt){
+    if(bardIt.st!=='show'){ bardIt=null; }
+    else {
+      bardIt.showT+=dt;
+      /* the leap: a third of a second of travel with a hop over the top, then
+         he holds station and breathes. */
+      const p=Math.min(1,bardIt.showT/0.55), e=1-Math.pow(1-p,3);
+      bardIt.x = bardIt.jx+(bardIt.sx-bardIt.jx)*e;
+      bardIt.y = bardIt.jy+(bardIt.sy-bardIt.jy)*e - Math.sin(p*Math.PI)*R*0.22
+                 + (p>=1 ? Math.sin(T*1.5)*R*0.010 : 0);
+      bardTune(dt);
+      if(bardIt.showT>=BARD_SHOW) bardBow(bardIt);
+      return;
+    }
+  }
+  /* he has to be riding in the bowl, the bowl has to be in your hand, and it has
+     to be holding steady. `done<0.55` because past halfway his mood is 'x' — a
+     man who is dissolving is not going to give you a song. */
+  const b = dragging ? held.find(it=>it.kind==='bard' && it.done<0.55) : null;
+  const drift = Math.hypot(ladle.vx,ladle.vy);
+  if(b && drift<BARD_STILL) bardStill+=dt; else bardStill=0;
+  bardWaitIt = bardStill>0 ? b : null;
+  if(b && bardStill>=BARD_PLAY) bardStart(b);
+}
+/* ── THE POSE IS COMPUTED ON THE FIXED STEP, NOT IN THE DRAW ─────────────────
+   Everything here is read off the tune — which note, and how long it is held —
+   and it belongs with the rest of the simulation. The first pass advanced it
+   inside the draw call off `lastU`, a `let` declared five thousand lines further
+   down the file: both the module-scope rule this project has been bitten by four
+   times, and an animation running at whatever rate the frame arrived at. */
+function bardTune(dt){
+  bardT+=dt;
+  const n=bardNote(bardT), fx=bardFX;
+  const hi=n.d/5;                                  // 0..1, how high the note is
+  /* one strum per onset: fast attack, slow return. A sine here reads as waving. */
+  const strum=Math.min(1,n.sinceOnset/0.06)*Math.max(0,1-n.sinceOnset/0.42);
+  /* the mouth stays open through a held note and closes at its tail. Snapping
+     shut on every beat is the one thing that makes a singer look like a fish. */
+  const tail=n.held ? Math.max(0,1-Math.max(0,n.into-0.72)/0.28)
+                    : Math.max(0,1-n.into);
+  bardBeat=n.beat;
+  bardPose={ strum,
+    fret:hi,                                       // moves BETWEEN notes, still during
+    open:(0.30+0.70*hi)*tail,
+    tilt:-hi*0.16*tail,                            // head back on the high ones
+    bob:Math.sin(n.beat*Math.PI*2)*0.030,
+    foot:Math.max(0,Math.sin(n.beat*Math.PI*2))*0.10,
+    held:n.held };
+  /* the quaver is per NOTE — it IS the note. The ring is per BEAT, because a
+     two-beat note that goes silent halfway through is a note that stopped, and
+     the whole point of holding one is that it does not. */
+  if(n.i!==fx.lastNote){ fx.lastNote=n.i;
+    fx.quavers.push({t:0,x:(Math.random()-0.5)*0.4,d:n.d});
+    if(fx.quavers.length>12) fx.quavers.shift(); }
+  const whole=Math.floor(n.beat);
+  if(whole!==fx.lastBeat){ fx.lastBeat=whole;
+    fx.rings.push({t:0,d:n.d});
+    if(fx.rings.length>10) fx.rings.shift(); }
+  for(let k=fx.rings.length-1;k>=0;k--){
+    fx.rings[k].t+=dt; if(fx.rings[k].t>=0.62) fx.rings.splice(k,1); }
+  for(let k=fx.quavers.length-1;k>=0;k--){
+    fx.quavers[k].t+=dt; if(fx.quavers[k].t>=1.5) fx.quavers.splice(k,1); }
+}
+/* ── AND THE ROOM DANCES ─────────────────────────────────────────────────────
+   Turning them to face him was invisible: a horizontal mirror on a 31px sprite
+   that is nearly symmetrical is no change at all. Matias: *"i can't see the
+   ingredients watching him. what if they'd start dancing?"* — which is the right
+   answer, and it is the study's own principle applied to the crowd instead of to
+   the performer: EVERYTHING READS THE TUNE. Sixty things moving on one beat is
+   the most visible thing that can happen on this screen.
+
+   THE DOWNBEAT RIPPLES OUTWARD FROM HIM. A shared beat with no delay reads as
+   sixty puppets on one string; a wave rolling out across the room reads as sixty
+   things listening to one thing, and it costs one subtraction. The lag is taken
+   off distance in x, so the far side of the kitchen is about a beat behind him.
+
+   IT IS DRAWN, NOT SIMULATED. Nobody's position, heading or state changes: they
+   go on wandering, huddling and walking into the pot while they bop, so the song
+   still costs the passive trickle nothing. */
+function bardDance(it,S){
+  const amp=bardLoud(); if(!amp) return null;
+  const lag=Math.abs(it.x-bardIt.x)/Math.max(1,W)*0.9;
+  const ph=(((bardBeat-lag)%1)+1)%1;
+  const hop=Math.sin(ph*Math.PI);          // down on the beat, up between
+  const sq2=hop*hop;
+  return { lift : sq2*S*0.30*amp,
+           sway : Math.sin(ph*TAU)*S*0.09*amp,
+           lean : Math.sin(ph*TAU)*0.22*amp,
+           /* squashed as they land and stretched at the top — the two frames
+              that make a hop read as weight rather than as a float. */
+           sq   : 1+(sq2*0.14-0.06)*amp };
+}
+/* the performance, drawn. Called from drawItem in place of CHR.bard, so it
+   inherits the item's own transform and colours. It reads state and computes
+   nothing. */
+function bardPlay(s,m){
+  const P=bardPose, fx=bardFX, loud=bardLoud();
+  /* LOUDER MEANS SEEN. A warm pool of light behind him, under everything else he
+     draws — he is a man singing in a dark kitchen and the one thing that has to
+     be true is that you cannot miss him. It goes BEHIND the figure and never
+     over the pot's own warnings, which are drawn later in the frame. */
+  const gl=ctx.createRadialGradient(0,-s*0.35,s*0.10,0,-s*0.35,s*2.9);
+  gl.addColorStop(0,`rgba(255,211,92,${0.30*loud})`);
+  gl.addColorStop(0.55,`rgba(255,170,80,${0.10*loud})`);
+  gl.addColorStop(1,'rgba(255,170,80,0)');
+  ctx.fillStyle=gl; ctx.fillRect(-s*3,-s*3.4,s*6,s*6);
+  ctx.save();
+  ctx.translate(0,P.bob*s);
+  humanoid(s,{mood:P.held?'shut':'ok',look:0.2},{
+    body:m.c1,bodyLo:m.cl,legs:m.c3,skin:m.c2,skinLo:m.cl,hat:'cap',hatCol:m.c3,
+    tilt:P.tilt, open:P.open, footR:P.foot*0.6, arms:'none' });
+  lute(s,true);
+  /* ── AND THE ARMS GO IN FRONT ────────────────────────────────────────────
+     humanoid draws both arms BEFORE the torso, so they hang behind it — right
+     for a figure standing there, impossible for one holding an instrument that
+     lies across its chest. Hands behind the lute are hands inside the lute. */
+  const f=0.30+P.fret*0.46;
+  limb(-0.42*s,-0.10*s,(0.44-0.96*f)*s,(0.34-0.54*f)*s,s*0.15,m.c1);   // fretting
+  limb( 0.42*s,-0.10*s, 0.52*s,(0.22+P.strum*0.28)*s,s*0.15,m.c1);     // strumming
+  ctx.restore();
+  /* sound leaving the mouth: RINGS, not notes. The notes are already his and
+     they say "music"; a ring says "this note, now, this loud". Fanned to the
+     side he faces rather than concentric — a ring all the way round the head is
+     a halo, which is a different character entirely, and one this game uses. */
+  const my=-s*0.40+P.bob*s;
+  for(const r of fx.rings){
+    const p=r.t/0.62, rad=s*(0.34+p*1.30);
+    const a=(1-p)*0.80*(0.45+r.d/5*0.55)*loud;
+    ctx.beginPath(); ctx.ellipse(s*0.18,my,rad,rad*0.78,0,-1.15,0.75);
+    ctx.lineWidth=Math.max(1,s*0.055*(1-p));
+    ctx.strokeStyle=`rgba(255,243,220,${clamp(a,0,1)})`; ctx.stroke();
+  }
+  for(const q of fx.quavers){
+    const p=q.t/1.5;
+    quaver(s*(0.62+q.x), -s*0.86-p*s*0.90-q.d*s*0.07, s*1.05,
+           clamp((1-p)*0.95*loud,0,1));
+  }
+}
+CHR.bard = (s,m)=>{
+  humanoid(s,m,{body:m.c1,bodyLo:m.cl,legs:m.c3,skin:m.c2,skinLo:m.cl,hat:'cap',hatCol:m.c3});
+  lute(s,false);
   // notes, rising
   for(let i=0;i<2;i++){
     const ph=(T*0.8+i*0.5+m.ph)%1;
     const nx2=s*(0.9+i*0.24)+Math.sin(ph*6)*s*0.14, ny2=-s*0.9-ph*s*1.1;
-    ctx.beginPath(); ctx.ellipse(nx2,ny2,s*0.10,s*0.08,-0.4,0,TAU);
-    ctx.fillStyle=`rgba(255,211,92,${(1-ph)*0.8})`; ctx.fill();
-    ctx.beginPath(); ctx.moveTo(nx2+s*0.09,ny2); ctx.lineTo(nx2+s*0.09,ny2-s*0.28);
-    ctx.lineWidth=Math.max(1,s*0.045);
-    ctx.strokeStyle=`rgba(255,211,92,${(1-ph)*0.8})`; ctx.stroke();
+    quaver(nx2,ny2,s,(1-ph)*0.8);
   }
 };
 CHR.taxman = (s,m)=>{
@@ -4596,6 +4880,8 @@ const SHOUT={
   cannon:['WHEEEE','CANNONBALL','YAHOO','BANZAI'],
   sleep: ['zzz','mmm...'],
   sprint:['GERONIMO','MAKE ROOM','FOR THE SOUP','COMING THROUGH'],
+  /* he does not announce that he is being cooked. He announces a song. */
+  bard:  ['A SONG!','GATHER ROUND','ONE VERSE','LISTEN','AHEM'],
 };
 function selfEntry(it){
   /* nobody is pushed. the soup simply smells better than anything they have
@@ -5119,6 +5405,12 @@ function step(dt){
   let under=0;
   for(const it of items){
     it.wob+=dt*2.4; it.flash=Math.max(0,it.flash-dt*3.2); const K=it.K;
+    /* HE IS ON STAGE. stepBard owns his position for the length of the song, and
+       every other branch below would either carry him, walk him about or cook
+       him. The three things asked for — cannot be scooped, cannot be shoved,
+       does not dissolve — are all this one `continue` plus the fact that the
+       scoop, the chop and the plunge each test for a state he is not in. */
+    if(it.st==='show') continue;
     if(it.st==='loose'){
       // damage is permanent. what got out of the pot stays hurt.
       it.wt-=dt;
@@ -5216,6 +5508,19 @@ function step(dt){
         ax+=(it.x-cx)/d3*2.0; ay+=(it.y-cy)/d3*2.0*YS; want=1;
       }
       if(CROWD&&diner&&diner.st==='knock'&&diner.t<0.5) it.flip=it.x<DOOR.x?-1:1;
+      /* AND THE ROOM WATCHES HIM.  The same courtesy the crowd already pays a
+         knock at the door, and the same one line — held for the whole song,
+         because a glance is what you give a noise and a performance is
+         something you watch. It moves nobody: they carry on wandering, huddling
+         and walking into the pot exactly as before, so the song costs the
+         passive trickle nothing. Turning the body turns the eyes with it —
+         `m.look` is `it.flip` — so the look vector is the facing, and there is
+         no second thing to keep in step.
+         The sense is `< x ? 1 : -1`, which is what 'gawk' and the boil-over
+         flinch both use to mean LOOK AT THE POT. The door line above uses the
+         other sense, and one of the two is inverted; it is not this one, and it
+         is written up in TODO rather than quietly changed. */
+      if(CROWD&&bardIt) it.flip=it.x<bardIt.x?1:-1;
       // weight sets pace: the ox trudges, the rat darts
       const pace=CROWD?clamp(1.55-K.s/34,0.45,1.9):1;
       const drive=want?1:0.06;
@@ -5455,6 +5760,7 @@ function step(dt){
   devNoteT=Math.max(0,devNoteT-dt*0.4);
   crowdNote=Math.max(0,crowdNote-dt*0.5);
   stepDiner(dt);
+  stepBard(dt);
   purseHit=Math.max(0,purseHit-dt*4.5);
   /* ── WHAT THE POT SMELLS OF, RIGHT NOW ──────────────────────────────────
      `flav` used to be a cumulative total: monotonic, saturating, and therefore a
@@ -6747,8 +7053,13 @@ function drawItem(it,dim){
   const walking = CROWD && it.st==='loose' && (it.sp||0)>14;
   const stride  = walking ? Math.sin(it.wob*2.4) : 0;
   const bob     = Math.abs(stride)*S*0.09;
+  /* they dance while he plays — see bardDance(). It rides ON TOP of whatever
+     they were already doing, so a thing walking across the kitchen bops as it
+     goes rather than stopping to perform. */
+  const dz = (bardIt && it.st==='loose') ? bardDance(it,S) : null;
   ctx.save();
-  ctx.translate(it.x,it.y-(it.z||0)-bob-(it.sit?-S*0.10:0));
+  ctx.translate(it.x+(dz?dz.sway:0),
+                it.y-(it.z||0)-bob-(dz?dz.lift:0)-(it.sit?-S*0.10:0));
   // a shadow on the ground while it is in the air
   if(it.st==='fly'&&it.z>2){
     ctx.beginPath();
@@ -6814,13 +7125,44 @@ function drawItem(it,dim){
     ctx.save();
     ctx.beginPath(); ctx.rect(-S*3,-S*7,S*6,wl+S*7); ctx.clip();
   }
+  /* THE PERFORMER IS THE STILL POINT.  While he plays he loses the carried
+     sway and the panic squash — everything that moves has to come off the tune,
+     or the two motions fight and it reads as a man being shaken rather than a
+     man playing. He also stands up: half again his crowd size, because the lute
+     pose is drawn to be read and 31px is drawn to be recognised in a mob. */
+  const perf = it.st==='show';
   ctx.save();
-  ctx.rotate(it.st==='fly' ? it.rot
-             : it.st==='loose' ? (CROWD?stride*0.055:Math.sin(it.wob*0.8)*0.05)
-             : Math.sin(it.wob*0.8)*0.14);
-  ctx.scale(it.flip/sq, sq*(1-d*0.14));
-  if(dim) ctx.globalAlpha=0.5;
-  CHR[it.kind](S, m);
+  if(perf){
+    /* HALF AGAIN AS TALL AS THE MOB. The lute pose is drawn to be read and 31px
+       is drawn to be recognised in a crowd, so he grows into the performance —
+       and he does not take the carried sway or the panic squash with him.
+       Everything that moves has to come off the tune, or the two motions fight
+       and it reads as a man being shaken rather than a man playing. */
+    ctx.scale(it.flip,1);
+    if(dim) ctx.globalAlpha=0.5;
+    bardPlay(S*(1+1.25*bardLoud()), m);
+  } else {
+    ctx.rotate((it.st==='fly' ? it.rot
+               : it.st==='loose' ? (CROWD?stride*0.055:Math.sin(it.wob*0.8)*0.05)
+               : Math.sin(it.wob*0.8)*0.14) + (dz?dz.lean:0));
+    const dsq = dz?dz.sq:1;
+    ctx.scale(it.flip/sq/dsq, sq*dsq*(1-d*0.14));
+    if(dim) ctx.globalAlpha=0.5;
+    CHR[it.kind](S, m);
+    /* ── TUNING UP ────────────────────────────────────────────────────────
+       Seven seconds is a long time to find by accident, and a mechanic nobody
+       ever discovers is a mechanic that does not exist. So from four and a half
+       he starts to hum: a couple of thin quavers that fade up as the clock
+       runs. Somebody who happens to pause sees something beginning and holds
+       still to find out what — which is the only way this is ever found. */
+    if(it===bardWaitIt){
+      const w=bardWake();
+      if(w>0.02) for(let i=0;i<2;i++){
+        const ph=(T*0.55+i*0.5)%1;
+        quaver(S*(0.52+i*0.30), -S*0.95-ph*S*0.70, S*0.80, (1-ph)*0.55*w);
+      }
+    }
+  }
   ctx.restore();
   if(bobbing) ctx.restore();
   /* THE WATERLINE. anything in the pot is drawn cut off at the surface, so
@@ -7143,6 +7485,8 @@ function draw(under){
   for(const it of front) drawItem(it,false);
   for(const it of items) if(it.st==='fly') drawItem(it,false);
   for(const it of held) drawItem(it,false);
+  // the bard, mid-song: over the pot he leapt out of, under the HUD
+  for(const it of items) if(it.st==='show') drawItem(it,false);
   drawBuffThreads();
   /* the reveal's blackout goes UNDER the two hazard readouts on purpose — see
      drawDim(). The prize itself goes over everything, at the end of the frame. */
@@ -8196,6 +8540,64 @@ if(DEV) window.__soup={
   knock(k){ if(!diner){ doorT=0; newDiner(k); return 'somebody is at the door'; }
            return 'already '+diner.st; },
   open(){ return letThemIn()?'they are coming in':'nobody is knocking'; },
+  /* ── THE BARD ──────────────────────────────────────────────────────────────
+     `hold()` puts one in the bowl and parks the finger exactly where the bowl
+     already is, which is how a person holds still: the spring has nothing to
+     chase, so the drift falls to zero on its own rather than being forced there.
+     Forcing `ladle.vx=0` every frame would have tested a number this test set
+     itself. */
+  bardHold(){
+    let it=items.find(o=>o.kind==='bard'&&(o.st==='loose'||o.st==='float'||o.st==='sunk'));
+    if(!it){ summon('bard',1); it=items.find(o=>o.kind==='bard'); }
+    if(!it) return 'no bard';
+    it.st='held'; if(held.indexOf(it)<0) held.push(it);
+    dragging=true; ptr.down=true; ptr.mode='drag'; ladleIn=1;
+    ladle.x=cx+R*0.9; ladle.y=cy-R*1.2; ladle.vx=0; ladle.vy=0;
+    ptr.x=ladle.x; ptr.y=ladle.y+LIFT;      // the finger, where the bowl already is
+    return 'bard in the bowl'; },
+  bardShove(v){ ptr.x+=(v===undefined?260:v); return 'the hand moved'; },
+  /* THE TOOL RIDES ABOVE THE FINGER, so anything aiming the LADLE at a world
+     point has to press below it by this much. Named `ladleLift` and not `lift`,
+     because `lift(v)` was already here as a SETTER for the same number — and an
+     accessor with the same key silently replaced it, which turned every
+     `S.lift(...)` in the harness into "not a function". `--away` caught it. */
+  get ladleLift(){ return LIFT; },
+  /* where he is and what he is, so a test can watch him leave the ladle, hold a
+     spot of his own, and come back down into the world. */
+  bardWhere(){ const it=items.find(o=>o.kind==='bard');
+    return it?{x:Math.round(it.x),y:Math.round(it.y),st:it.st,
+               done:+it.done.toFixed(3),showT:+(it.showT||0).toFixed(2)}
+             :{x:0,y:0,st:'none',done:0,showT:0}; },
+  /* the real scoop, at a point of the test's choosing — the same branch a
+     player's hand goes through, so "he cannot be captured" is asserted against
+     the shipping rule and not against a second copy of it. */
+  grabAt(x,y){ ladle.x=x; ladle.y=y; ptr.x=x; ptr.y=y+LIFT;
+    dragging=true; ptr.down=true; ladleIn=1;
+    const was=held.length;
+    for(const it of items){ if(it.st!=='loose') continue;
+      if(it.K.ghost && fire<0.55) continue;
+      if(Math.hypot(it.x-ladle.x,it.y-ladle.y)<LR+ST.grabR){
+        it.st='held'; held.push(it); if(held.length>=ST.hold) break; } }
+    return held.length-was; },
+  get bard(){ return { still:+bardStill.toFixed(2), loud:+bardLoud().toFixed(3),
+    playing:!!bardIt, showT:bardIt?+bardIt.showT.toFixed(2):0, of:BARD_SHOW,
+    wake:+bardWake().toFixed(2), t:+bardT.toFixed(2),
+    drift:Math.round(Math.hypot(ladle.vx,ladle.vy)),
+    rings:bardFX.rings.length, quavers:bardFX.quavers.length,
+    inBowl:held.some(o=>o.kind==='bard'),
+    onStage:items.filter(o=>o.st==='show').length,
+    /* how much of the room is facing him, and how much of it is walking about —
+       so a test can tell "they turned to watch" from "they stopped living". */
+    watching:(()=>{ if(!bardIt) return 0;
+      let n=0; for(const o of items){ if(o.st!=='loose') continue;
+        if((o.x<bardIt.x?1:-1)===o.flip) n++; } return n; })(),
+    loose:items.filter(o=>o.st==='loose').length,
+    dance:(()=>{ if(!bardIt) return null;
+      const o=items.find(x=>x.st==='loose'); if(!o) return null;
+      const d=bardDance(o,30); return d?{lift:+d.lift.toFixed(2),sway:+d.sway.toFixed(2),
+        lean:+d.lean.toFixed(3),sq:+d.sq.toFixed(3)}:null; })(),
+    moving:items.filter(o=>o.st==='loose'&&(o.sp||0)>14).length,
+    songs:STATS.life.bardSongs||0, pose:{...bardPose} }; },
   /* ── the character sheet ───────────────────────────────────────────────────
      `sheetRows()` returns what the panel ACTUALLY BUILT, read back off the DOM
      it produced rather than recomputed — so `--sheet` compares the picture
@@ -8402,6 +8804,10 @@ if(DEV) window.__soup={
     stats(){ return STATS; },
     blank(){ return defaultStats(); },
     list(){ return ACH; },
+    has(id){ return EARNED.has(id); },
+    /* how many are waiting to be looked at — a medal that unlocks without ever
+       announcing itself is a medal nobody knows they earned. */
+    get newCount(){ return achNew; },
     get count(){ return {total:ACH.length, earned:EARNED.size}; },
   },
   LEG,   // the table itself, so a test prices off it rather than hardcoding
@@ -8517,6 +8923,12 @@ const DBG=[
   {n:'Knock', f:()=>{ window.__soup.knock(); }, val:()=>window.__soup.who(),
    d:'Somebody arrives at the hatch — whoever is next in the running order.'},
   {n:'Open the hatch', f:()=>{ window.__soup.open(); }, d:'Let in whoever is knocking.'},
+  {n:'Put a bard in the spoon', f:()=>{ devNote=window.__soup.bardHold().toUpperCase();
+      devNoteT=1; },
+   val:()=>{ const b=window.__soup.bard;
+     return b.playing ? 'SINGING '+b.showT.toFixed(0)+'s of '+b.of
+          : b.inBowl ? b.still.toFixed(1)+'s of 7' : 'not held'; },
+   d:'Scoops a bard into the ladle and parks your hand where the bowl already is. Hold still: at 4.5s he tunes up, at 7s he leaps out and sings for twenty seconds. Your hand is free the moment he jumps, and nothing can scoop, shove or cook him while he plays. It pays nothing — the stir you are not doing is the price.'},
   {n:'Leave a parcel', f:()=>{ devNote=window.__soup.parcelNow().toUpperCase(); devNoteT=1; },
    val:()=>topLadle()?'ladder done':'next: '+LADLES[Math.min(LADLES.length-1,ladleTier+1)].id,
    d:'Something is left at the hatch instead of a customer. Four clicks opens it and it hands you the next ladle up the ladder — cosmetic, always. In play it is one knock in eight or so, never within three serves of the last one, and never at all once the ladder is finished.'},
@@ -9575,6 +9987,7 @@ function defaultStats(){ return {
   life:{ pops:0, brothEarned:0, dinersServed:0, sendBacks:0, dives:0, divesPerfect:0,
     entriesWilling:0, upgradesBought:0, cardsTaken:0, runsFinished:0,
     endWorld:0, endPot:0, awayCollected:0, secondsPlayed:0, actReached:1,
+    bardSongs:0,
     cooked:{}, served:{}, styles:{} },
   run:{ serves:0, sendBacks:0, noSendBack:true, brothPeak:0, kinds:{} },
   best:{ broth:0, singlePop:0, mostServedRun:0, inPotAtOnce:0 },
@@ -9788,6 +10201,12 @@ const STYLE_NAME={trip:'Belly Flop',swan:'The Swan',cannon:'Cannonball',sleep:'T
   push({id:'marathon-run',cat:'service',tier:2,name:'A Full Rota',blurb:'Serve fifteen or more diners in one run.',check:S=>S.best.mostServedRun>=15});
   push({id:'overflow',cat:'pops',tier:3,hidden:true,name:'Overstuffed',blurb:'Hold more in the pot than it was ever meant to.',check:S=>S.best.inPotAtOnce>= (typeof ST!=='undefined'? Math.max(1,ST.pot):999)});
   push({id:'monoculture',cat:'secret',tier:2,hidden:true,name:'A Pot of Nothing But',blurb:'Finish an act having cooked exactly one kind of thing.',check:S=>false,manual:true});
+  /* SECRET, because being told "hold the spoon still for seven seconds" in a
+     list of medals would take the whole thing away. It is found by pausing, or
+     it is not found — which is the same bargain every good secret makes. */
+  push({id:'the-song',cat:'secret',tier:2,hidden:true,name:'And One For The Pot',
+        blurb:'Keep still long enough, with the right passenger, and somebody sings.',
+        check:S=>(S.life.bardSongs||0)>0});
   push({id:'end-world',cat:'endings',tier:4,hidden:true,name:'The World, For the Pot',blurb:'You poured everything in.',check:S=>S.life.endWorld>0});
   push({id:'end-pot',cat:'endings',tier:4,hidden:true,name:'The Pot, For the World',blurb:'You gave everything away.',check:S=>S.life.endPot>0});
   push({id:'both-ends',cat:'endings',tier:5,hidden:true,name:'You Asked It Both Ways',blurb:'Take both endings, across runs.',check:S=>S.life.endWorld>0&&S.life.endPot>0});
