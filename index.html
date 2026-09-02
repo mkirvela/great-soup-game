@@ -1091,6 +1091,15 @@
        aroma, which is a rate you can move with your hands. -->
   <div class="bars">
     <div class="row"><span class="lbl">Aroma</span><span id="varo" style="font-family:var(--f-mono);font-size:10px;color:var(--hot)">—</span></div>
+    <!-- HOW FAR THROUGH THE RUN YOU ARE. It existed already — `N of 20 served` —
+         and it lived in exactly one place a player could reach: the subtitle
+         under The Guests in the hamburger, on a button that is `display:none` on
+         a phone because it is a dev view. So on desktop it was small text inside
+         a menu with no reason to open it, and on a phone it was nowhere. The act
+         numeral was the only progress signal you actually saw, and act 5 is six
+         of the twenty serves on its own — which is why it reads as going on
+         forever. It is the one number that says the run HAS an end. -->
+    <div class="row"><span class="lbl">Served</span><span id="vserved" style="font-family:var(--f-mono);font-size:10px;color:var(--gold)">0 / 20</span></div>
   </div>
   <!-- CHEF EXP: the bar that always climbs, across runs. CHEF.md §1. -->
   <div class="chef" id="chefdoor" role="button" tabindex="0"
@@ -2757,6 +2766,42 @@ const lv={}; for(const u of UP) lv[u.id]=0;
    this tree is five choices, not twenty-one.
    Ascension is deliberately absent: it is its own issue, and it is the only node
    that makes a run HARDER, so it wants its own gate and its own conversation. */
+/* ══ ASCENSION ══════════════════════════════════════════════════════════════
+   CHEF.md §4's loop, and issue #5. The Reputation makes a run start FURTHER
+   ALONG; Ascension makes it start HARDER — which is why it is not a node in that
+   tree (the comment below says so) but a question asked at the end of a run.
+
+   IT PAYS IN EXP, NOT IN BROTH, and that is the answer to #5's own objection:
+   *"permanent multipliers compound across runs, and this game's income already
+   spans five orders of magnitude — whatever the numbers are, they want the
+   act-exit measurement (#2) behind them, otherwise Ascension is the second
+   unmeasured curve stacked on the first."* Quite right, so it does not touch the
+   economy at all. Every dial below makes the run harder; the only thing it gives
+   back is chef exp, which is a separate linear track designed from the start to
+   climb across runs and which no balance number reads. Ascension can therefore
+   ship before the curve is measured, and #2 can land later without re-tuning it.
+
+   THREE EXISTING `MOD` KEYS AND NO NEW PLUMBING. Bigger bowls, dearer tree,
+   less slack at the door — all three are dials the sim already reads every
+   frame, so there is no new branch anywhere in the simulation. */
+const ASC=[
+  { n:'The Same Again',   need:1.00, cost:1.00, door:1.00, exp:1.00,
+    d:'The run as it was written.' },
+  { n:'A Fuller House',   need:1.22, cost:1.15, door:0.92, exp:1.40,
+    d:'Every bowl a fifth larger, the tree a little dearer, and they arrive sooner.' },
+  { n:'The Long Service', need:1.50, cost:1.35, door:0.85, exp:1.90,
+    d:'Half again on every order, and the door barely rests.' },
+  { n:'A Harder Water',   need:1.85, cost:1.60, door:0.78, exp:2.50,
+    d:'The pot does not care that you have done this before.' },
+  { n:'The Same Pot',     need:2.30, cost:1.90, door:0.72, exp:3.20,
+    d:'It has simmered since before there was a floor. It can wait longer than you can.' },
+];
+let asc=0;                                  // which tier the NEXT run is cooked at
+const ascAt=()=>ASC[Math.max(0,Math.min(ASC.length-1,asc))];
+const ascTop=()=>asc>=ASC.length-1;
+/* offered only once you have finished a run — you cannot ask for it harder
+   before you have seen how hard it is. */
+const ascOffered=()=>(STATS.life.runsFinished||0)>0;
 const LEG=[
  /* ONE STAR, not two. The first chef level mints exactly one star, and with
     every node at 2 or more that star bought nothing — which is the same "a
@@ -3621,6 +3666,11 @@ const CARDS=[
 function applyMods(){
   MOD={...MOD0};
   for(const k of chosen) if(CHOICE[k]) CHOICE[k](MOD);
+  /* ASCENSION GOES ON LAST, over the cards, because it is the water the whole
+     run is cooked in rather than a choice made inside it. Three dials that
+     already exist: bigger bowls, dearer tree, less rest at the door. */
+  const A2=ascAt();
+  MOD.needMul*=A2.need; MOD.costMul*=A2.cost; MOD.doorMul*=A2.door;
   recalc();
 }
 /* ── WHO IS AT THE DOOR ───────────────────────────────────────
@@ -7316,6 +7366,120 @@ function drawBuffThreads(){
   }
   ctx.restore();
 }
+/* ══ THE WALL OF RUNS ═══════════════════════════════════════════════════════
+   Issue #18, and `gallery.html` is the study that settled it. Matias: *"whenever
+   you complete a run, hang a picture on the wall, so that tells you which
+   playthrough you're on. The progression needs to be environmental too, not only
+   a number."*
+
+   It is the same information as `runNo` and you LIVE in it rather than reading
+   it — legible from across the room, at a glance, with no UI at all.
+
+   FOUR THINGS THE STUDY DECIDED, and this follows all four:
+
+     · WHAT IS IN THE FRAME — the ladle you wore. It wins on cost and on
+       meaning: `paintLadle` already draws any rung from six constants, so there
+       is no new art at all, and it is the object you actually held.
+     · THEY DIFFER FOR FREE — `ending` is already persisted, so a frame hangs
+       LIT if you poured the world into the pot and DARK if you poured the pot
+       into the world. A wall of twelve where four hang dark is a record of what
+       you chose, not a tally of what you finished. The study calls this the
+       single strongest thing in the idea, and it costs nothing.
+     · THE WALL HAS TWO HOLES IN IT — the serving hatch, and the pot, which
+       stands 55px proud of the wall's bottom edge and is 554px wide at
+       1960x930. The bottom row dead centre is the one place a picture cannot
+       go. So the layout is a packing problem with obstacles, filling bottom-up
+       and left-to-right the way a wall actually accumulates.
+     · AND THE SIZE NEEDS A VIEWPORT FLOOR, not an R multiple. At R*0.26 a phone
+       draws 28px frames from the very first one — at the legibility floor before
+       a single run is finished. That is the belly instruments' disease again: a
+       size in the wrong unit. One Math.max fixes it.
+
+   THE FIRST FRAME IS NOT YOURS. An empty wall in a game that fills every other
+   corner reads as missing art rather than as promise — the study's question 5,
+   and its answer: hang the previous cook's ladle first. He is already in the
+   fiction (*"he is watching how you hold it"*, *"he puts the ladle down"*), so
+   your first run joins a lineage instead of breaking a void. */
+const WALL_MAX=60;               // how many are kept; past this the oldest go
+let wallRuns=[];                 // [{e:'world'|'pot', l:ladleTier}] oldest first
+/* HIS FRAME, always first and never yours: the stock ladle, hung dark, because
+   he put it down. */
+const WALL_HIS={e:'his', l:0};
+function wallHang(choice){
+  wallRuns.push({e:choice==='world'?'world':'pot', l:ladleTier});
+  if(wallRuns.length>WALL_MAX) wallRuns.shift();
+}
+/* ── WHERE THEY GO ──────────────────────────────────────────────────────────
+   Bottom-up, left-to-right, skipping anything that would land on the hatch or
+   on the pot. Returns the boxes; the caller draws them. Kept out of the draw so
+   a test can read the layout without a canvas — the thing that goes wrong with
+   wall furniture is that it lands somewhere it should not, and that is a
+   question about numbers, not about pixels. */
+/* THE WALL'S OWN GEOMETRY, published rather than recomputed. `--wall` asks
+   whether any frame lands on a hole, and a check that rebuilds the hole from a
+   copy of this expression is a check that agrees with itself by construction —
+   the mistake `--orders` makes. It reads these boxes. */
+function wallGeom(){
+  /* the frame, with a floor in VIEWPORT units so a phone does not start at the
+     legibility limit — the study measured 28px frames on an 852x393 screen from
+     the very first run. */
+  const fs=Math.max(34, Math.min(R*0.26, HZ*0.20));
+  return { fs, gap:fs*0.30, step:fs*1.30,
+    top:Math.max(6, HZ*0.10),               // leave the ceiling alone
+    bottom:HZ-fs*0.55,                      // the wall's own bottom edge
+    /* the two holes. The pot pokes up over the wall's bottom edge, so it is a
+       box and not a line; the hatch is a box in every act. */
+    pot:{ l:cx-R*1.05, r:cx+R*1.05, t:cy-R*1.30, b:H+9e3 },
+    hatch:{ l:HATCH.x-HATCH.w*0.62, r:HATCH.x+HATCH.w*0.62,
+            t:HATCH.bottom-HATCH.h-R*0.10, b:HATCH.bottom+R*0.06 } };
+}
+function wallSlots(n){
+  const out=[];
+  if(n<=0) return out;
+  const G=wallGeom(), fs=G.fs, step=G.step, top=G.top, bottom=G.bottom;
+  const hits=(bx,by2,h)=>{
+    const l=bx-fs*0.5, r=bx+fs*0.5, t=by2-fs*0.5, b=by2+fs*0.5;
+    return r>h.l && l<h.r && b>h.t && t<h.b;
+  };
+  const clear=(x,y)=>!hits(x,y,G.pot) && !hits(x,y,G.hatch);
+  for(let y=bottom; y>top && out.length<n; y-=step){
+    for(let x=step*0.75; x<W-fs*0.5 && out.length<n; x+=step){
+      if(clear(x,y)) out.push({x,y,s:fs});
+    }
+  }
+  return out;
+}
+/* one frame: brass, paper, and the ladle that cooked that run. */
+function drawFrame(b,rec){
+  const s=b.s, lit=rec.e==='world';
+  ctx.save();
+  ctx.translate(b.x,b.y);
+  /* THE FRAMES TAKE A LIGHT TINT FROM THE ROOM but keep their own paper and
+     brass — otherwise act 5's cold blue turns the whole wall into a fridge,
+     which is the study's question 6 and the act it says to watch. */
+  const brass=mix(rec.e==='his'?'#6E6A5E':'#B08A3C', A.room, 0.22);
+  const paper=mix(lit?'#EFDDB8':'#8A7C68', A.room, 0.30);
+  ctx.beginPath(); ctx.rect(-s*0.5,-s*0.5,s,s);
+  ctx.fillStyle=brass; ctx.fill();
+  ctx.lineWidth=Math.max(1.4,s*0.055); ctx.strokeStyle=INK; ctx.stroke();
+  ctx.beginPath(); ctx.rect(-s*0.36,-s*0.36,s*0.72,s*0.72);
+  ctx.fillStyle=paper; ctx.fill();
+  ctx.lineWidth=Math.max(1,s*0.03); ctx.strokeStyle=mix(INK,brass,0.35); ctx.stroke();
+  /* the ladle it was cooked with, from the same six constants the real one uses
+     — so a wall of frames is a record of which tools you were holding. */
+  ctx.save();
+  ctx.beginPath(); ctx.rect(-s*0.36,-s*0.36,s*0.72,s*0.72); ctx.clip();
+  ctx.globalAlpha=lit?1:0.5;
+  ctx.translate(-s*0.10, s*0.16); ctx.rotate(-0.62);
+  paintLadle(s*0.115, LADLES[Math.max(0,Math.min(LADLES.length-1,rec.l|0))], {});
+  ctx.restore();
+  ctx.restore();
+}
+function drawWall(){
+  const recs=[WALL_HIS, ...wallRuns];
+  const slots=wallSlots(recs.length);
+  for(let i=0;i<slots.length;i++) drawFrame(slots[i], recs[i]);
+}
 function drawRoom(){
   if(!A.stove) return;
   const flick=0.86+0.14*Math.sin(T*7.3)+0.06*Math.sin(T*17.1);
@@ -7324,6 +7488,7 @@ function drawRoom(){
   const wg=ctx.createLinearGradient(0,0,0,HZ);
   wg.addColorStop(0,A.room); wg.addColorStop(1,mix(A.room,A.room2,0.30));
   ctx.fillStyle=wg; ctx.fillRect(-2,-2,W+4,HZ+4);
+  drawWall();          // one framed run per finish — see #18 and gallery.html
 
   /* ── THE WALL IS EMPTY ON PURPOSE ────────────────────────────────────────
      The batterie de cuisine — a rail with brackets, a pan, a ladle, a bundle of
@@ -7893,6 +8058,13 @@ function draw(under){
      `AXC` stay — the ticket, `palBlown()` and the floor tint all still use them. */
   document.getElementById('varo').textContent =
     allure<0.02 ? 'faint' : '+'+(allure*100).toFixed(0)+'% they walk in';
+  /* and the run's own position in the rota. `rank` is who is NEXT, so it is also
+     how many have been served — and it stops at the last index, so the readout
+     tops out at 20/20 rather than counting past the end. */
+  { const vs=document.getElementById('vserved');
+    if(vs){ const n=Math.min(rank,RUN.length);
+      setTxt(vs, n+' / '+RUN.length+(runOver?'  ·  done':
+        n>=RUN.length-1?'  ·  she is next':'')); } }
   /* swirl, cooking and fire used to be written into three DOM meters here. They
      are drawn on the pot now — drawGauge() reads the same globals directly, so
      there is no per-frame DOM write left for them at all. */
@@ -8579,10 +8751,43 @@ if(DEV) window.__soup={
       if(Math.hypot(it.x-ladle.x,it.y-ladle.y)<LR+ST.grabR){
         it.st='held'; held.push(it); if(held.length>=ST.hold) break; } }
     return held.length-was; },
+  /* ── THE WALL OF RUNS ─────────────────────────────────────────────────────
+     `slots()` returns the LAYOUT rather than the picture, so a check can ask the
+     only question that has ever gone wrong with wall furniture — did it land
+     somewhere it should not — without needing pixels. */
+  get wall(){ return { hung:wallRuns.length, frames:wallRuns.length+1,
+    world:wallRuns.filter(r=>r.e==='world').length,
+    pot:wallRuns.filter(r=>r.e==='pot').length,
+    runs:wallRuns.map(r=>({...r})) }; },
+  wallSlots(n){ return wallSlots(n===undefined?wallRuns.length+1:n)
+                  .map(b=>({x:Math.round(b.x),y:Math.round(b.y),s:Math.round(b.s)})); },
+  wallGeom(){ const g=wallGeom(); return {fs:Math.round(g.fs), top:Math.round(g.top),
+    bottom:Math.round(g.bottom), hz:Math.round(HZ), w:W,
+    pot:{l:Math.round(g.pot.l),r:Math.round(g.pot.r),t:Math.round(g.pot.t)},
+    hatch:{l:Math.round(g.hatch.l),r:Math.round(g.hatch.r),
+           t:Math.round(g.hatch.t),b:Math.round(g.hatch.b)} }; },
+  wallHang(e){ wallHang(e); saveMeta(); return wallRuns.length; },
+  wallClear(){ wallRuns=[]; saveMeta(); return 0; },
+  /* ── ASCENSION ──────────────────────────────────────────────────────────── */
+  get asc(){ const A2=ascAt();
+    return { tier:asc, of:ASC.length-1, name:A2.n, offered:ascOffered(), top:ascTop(),
+             need:A2.need, cost:A2.cost, door:A2.door, exp:A2.exp,
+             modNeed:+MOD.needMul.toFixed(3), modCost:+MOD.costMul.toFixed(3),
+             modDoor:+MOD.doorMul.toFixed(3),
+             finished:STATS.life.runsFinished||0 }; },
+  setAsc(n){ asc=Math.max(0,Math.min(ASC.length-1,n|0)); applyMods(); saveMeta();
+             return ascAt().n; },
+  ascTable(){ return ASC.map(a=>({...a})); },
+  /* fires the real offer, so a test drives the shipping branch rather than a
+     second copy of the gate. Returns whether it put a question on screen. */
+  ascOffer(){ return offerAscension(); },
+  ascAnswer(which){ const b=document.getElementById(which==='up'?'ca':'cb');
+    if(!b||!b.onclick) return 'no offer on screen'; b.onclick(); return ascAt().n; },
   get bard(){ return { still:+bardStill.toFixed(2), loud:+bardLoud().toFixed(3),
     playing:!!bardIt, showT:bardIt?+bardIt.showT.toFixed(2):0, of:BARD_SHOW,
     wake:+bardWake().toFixed(2), t:+bardT.toFixed(2),
     drift:Math.round(Math.hypot(ladle.vx,ladle.vy)),
+    ladle:{x:Math.round(ladle.x),y:Math.round(ladle.y)}, dragging, simmering,
     rings:bardFX.rings.length, quavers:bardFX.quavers.length,
     inBowl:held.some(o=>o.kind==='bard'),
     onStage:items.filter(o=>o.st==='show').length,
@@ -9838,6 +10043,7 @@ function openEndingCard(){
 function endRun(choice){
   closeCard();
   runOver=true; ending=choice; endBroth=broth;
+  wallHang(choice);                  // a picture goes up (#18)
   legBank();                         // Deep Pockets keeps a cut of the pour
   achEndRun(choice);
   if(STATS.run.noSendBack) grantManual('clean-run');  // read before the run resets
@@ -9888,8 +10094,42 @@ function openEpilogue(){
       'There is no recipe for her in this book. You already know it.',
       '<em>Turn the page to begin again.</em>',
     ]};
-  afterBook=newRun;
+  /* ASK BEFORE BEGINNING AGAIN, not after. The offer sits between the last page
+     and the new kitchen, so "turn the page to begin again" is answered by a
+     question about what kind of again — and the card overlay is already exactly
+     that shape: a question with two authored answers. */
+  afterBook=()=>{ if(!offerAscension()) newRun(); };
   setBook(true,0,[scene,tally,her]);
+}
+/* ── THE OFFER ──────────────────────────────────────────────────────────────
+   Returns true if it put a question on screen, false if there is nothing to ask
+   — which is the first finish of all (you cannot be asked to go harder before
+   you have been told the tier exists) and the top of the ladder.
+
+   IT IS ALWAYS A CHOICE AND NEVER A RATCHET. Both answers are offered every
+   time, including "the same again", and taking a step up does not lock you
+   there: the question comes back at the end of every run and `asc` can go down
+   as readily as up. A difficulty you cannot put down is a difficulty that
+   eventually ends the save. */
+function offerAscension(){
+  if(!ascOffered() || ascTop()) return false;
+  const next=ASC[asc+1], here=ascAt();
+  cardOpen=true; cardEl.classList.add('on'); cardEl.setAttribute('aria-hidden','false');
+  setTxt(document.getElementById('ckick'),
+    'Run '+(runNo+1)+' · you have finished '+(STATS.life.runsFinished||0)+
+    (STATS.life.runsFinished===1?' time':' times'));
+  setTxt(document.getElementById('cq'), '“Again — and harder?”');
+  const opts=[['ca',{t:next.n, d:next.d+'  Chef exp ×'+next.exp.toFixed(2)+'.', to:asc+1}],
+              ['cb',{t:here.n===ASC[0].n?'As it was':'Stay at '+here.n,
+                     d:asc?'Keep this water. Chef exp ×'+here.exp.toFixed(2)+'.'
+                          :'The run as it was written. No more, no less.', to:asc}]];
+  for(const [id,o] of opts){
+    const b=document.getElementById(id);
+    setTxt(b.querySelector('b'), o.t);
+    setTxt(b.querySelector('span'), o.d);
+    b.onclick=()=>{ asc=o.to; saveMeta(); closeCard(); newRun(); };
+  }
+  return true;
 }
 /* NEW RUN.  clear the per-run save and reset to act one, but keep the codex — it
    is a lifetime book (CHEF.md §5 will move it into the meta save; for now we just
@@ -10061,6 +10301,10 @@ function chefInfo(exp){ let lv=1, need=40, used=0;   // exp to leave level `lv` 
   while(exp-used>=need){ used+=need; lv++; need=40*lv; }
   return { lv, into:exp-used, need }; }
 function addExp(n){ if(preMax||!(n>0)) return;
+  /* THE ONLY THING ASCENSION PAYS. Deliberately not broth: exp is a linear track
+     that nothing in the balance reads, so scaling it cannot compound into an
+     economy that has not been measured yet (#5's own objection to itself). */
+  n*=ascAt().exp;
   const was=chefInfo(chefExp).lv;
   /* ROUNDED BACK TO ITS OWN GRID, every time. The trickle adds 0.05 or 0.25 a
      tick, and 0.05 has no exact binary form — 720 of them make 36.00000000000009
@@ -10480,6 +10724,20 @@ function buildSheet(){
     let eff=''; try{ eff=n.d?n.d(l):''; }catch(e){ eff=''; }
     R.appendChild(shRow(n.n,l,n.max,eff));
   }
+  shGroup(R,'Ascension', ascOffered()?('tier '+asc+' of '+(ASC.length-1))
+                                     :'not offered yet');
+  if(!ascOffered()){
+    const p2=document.createElement('div'); p2.className='shnone';
+    p2.textContent='finish a run once and you will be asked whether to cook the next one harder.';
+    R.appendChild(p2);
+  } else {
+    const A2=ascAt();
+    R.appendChild(shRow(A2.n, asc, ASC.length-1,
+      'orders ×'+A2.need.toFixed(2)+' · tree ×'+A2.cost.toFixed(2)+' · exp ×'+A2.exp.toFixed(2)));
+    const p2=document.createElement('div'); p2.className='shnone';
+    p2.textContent=A2.d;
+    R.appendChild(p2);
+  }
   shGroup(R,'The ladder of ladles','rung '+(ladleTier+1)+' of '+LADLES.length);
   const lad=document.createElement('div'); lad.className='shladder';
   for(let r=0;r<LADLES.length;r++){
@@ -10583,7 +10841,7 @@ function setSheet(v){
 function saveMeta(){ if(preMax||blocked[AMETA]) return;
   try{ localStorage.setItem(AMETA,JSON.stringify({ v:META_V, runNo,
     stats:STATS, achieved, chefExp, chefLevel, stars:chefStars,
-    legacy:leg, carry:legCarry, ladle:ladleTier })); }catch(e){}
+    legacy:leg, carry:legCarry, ladle:ladleTier, asc, wall:wallRuns })); }catch(e){}
 }
 function loadMeta(){
   /* the meta is read with its OWN call, so a run save this build cannot read —
@@ -10607,6 +10865,20 @@ function loadMeta(){
      must land on a row that exists rather than paint `undefined` colours all
      over the pot. */
   ladleTier=Math.max(0,Math.min(LADLES.length-1, typeof d.ladle==='number'?d.ladle|0:0));
+  /* clamped to the table for the same reason the ladle is: a saved tier is an
+     index, and a blob from a build with more tiers than this one must land on a
+     row that exists rather than multiply every order by `undefined`. */
+  asc=Math.max(0,Math.min(ASC.length-1, typeof d.asc==='number'?d.asc|0:0));
+  /* READ PER RECORD, not spread. A saved wall is drawn on screen every frame, so
+     a bad row is a crash in the renderer rather than a wrong number in a panel —
+     the ending is checked against the two that exist and the ladle is clamped to
+     the table, exactly as the held ladle is. */
+  wallRuns = Array.isArray(d.wall)
+    ? d.wall.filter(r=>r&&typeof r==='object')
+        .map(r=>({ e:r.e==='world'?'world':'pot',
+                   l:Math.max(0,Math.min(LADLES.length-1, typeof r.l==='number'?r.l|0:0)) }))
+        .slice(-WALL_MAX)
+    : [];
   if(d.stats){ const def=defaultStats();
     for(const sc of ['life','run','best']) STATS[sc]=Object.assign(def[sc], d.stats[sc]||{}); }
   if(Array.isArray(d.achieved)){ achieved=d.achieved.filter(r=>r&&r.id);
